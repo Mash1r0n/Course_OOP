@@ -966,14 +966,15 @@ public:
 
         else if (Variative >= TextChange && Variative <= CopyText) {
             vector<Memento*> TempMemento = History->GetActiveSessionMemento();
+            int CountCoef = TempMemento.size() > 5 ? TempMemento.size() - 5 : 0;
 
             cout << "[Ім'я сесії: " << ActiveSession->GetName() << "]" << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "A" << setw(14) << setprecision(14) << setfill(' ') << left << "AsssssssAA" << "|" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AAsadasdA" << "|" << endl;
-            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "|" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AasdasdAA" << "|" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AAA" << "|" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AAasdA" << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 1 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 1 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 2 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 2 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "|" << setw(3) << setprecision(3) << setfill(' ') << left << 3 << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 3 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 4 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 4 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 5 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 5 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
             switch (Variative) {
             case TextChange: {

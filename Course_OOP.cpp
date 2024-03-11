@@ -193,13 +193,14 @@ int main() {
 using namespace std;
 
 #define MainMenu 0 //Означає відображенняж. головного меню
-#define TextChange 1 //Означає відображення текстового редактору
-#define InputText 2 //Означає відображення текстового редактору з командами вставки тексту
-#define CutText 3 //Означає відображення текстового редактору з командами вирізки тексту
-#define DeleteText 4 //Означає відображення текстового редактору з командами видалення тексту
-#define MoveText 5 //Означає відображення текстового редактору з командами переміщення тексту
-#define CopyText 6 //Означає відображення текстового редактору з командами копіювання тексту
-#define AllSessions 7 //Означає відображення всіх сесій
+#define TextChange 1 //Означає відображення текстового редактору без команд
+#define SimpleTextChange 2 //Означає відображення текстового редактору з командами
+#define InputText 3 //Означає відображення текстового редактору з командами вставки тексту
+#define CutText 4 //Означає відображення текстового редактору з командами вирізки тексту
+#define DeleteText 5 //Означає відображення текстового редактору з командами видалення тексту
+#define MoveText 6 //Означає відображення текстового редактору з командами переміщення тексту
+#define CopyText 7 //Означає відображення текстового редактору з командами копіювання тексту
+#define AllSessions 8 //Означає відображення всіх сесій
 
 class Session {
 private:
@@ -514,6 +515,46 @@ public:
         }
     }
 
+    void MoveInText() {
+        int Choice;
+        cin >> Choice;
+
+        switch (Choice) {
+        case 0: {
+            system("cls");
+            Render(TextChange);
+        }break;
+
+        case 1: {
+            int StartPos, Count, Pos;
+            cout << "Введіть через пробіл номер символу з якого почати виділення тексту та кількість символів після нього: ";
+            cin >> StartPos >> Count;
+
+            string SubText = ActiveSession->GetTextLine().substr(StartPos, Count);
+
+            ActiveSession->DeleteFromText(StartPos, StartPos + Count + 1);
+
+            system("cls");
+            Render(SimpleTextChange);
+
+            cout << " Введіть номер символу перед яким треба поставити текст: ";
+            cin >> Pos;
+
+            ActiveSession->InputToText(Pos, SubText);
+
+            system("cls");
+            Render(TextChange);
+
+        }break;
+
+        default: {
+            system("cls");
+            cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(TextChange);
+        }
+        }
+    }
+
     void TextChangeSelector() {
         int Choice;
         cin >> Choice;
@@ -541,7 +582,8 @@ public:
         }break;
 
         case 4: {
-
+            system("cls");
+            Render(MoveText);
         }break;
 
         case 5: {
@@ -603,7 +645,9 @@ public:
             }break;
 
             case MoveText: {
-                //Переміщення тексту
+                cout << "1 - Перемістити текст за номером початку, кількістю символів та індексу місця вставки      0 - Вихід" << endl;
+                cout << endl << " Оберіть команду: ";
+                MoveInText();
             }break;
 
             case CopyText: {
@@ -630,8 +674,6 @@ void main()
     SetConsoleOutputCP(1251);
 
     Editor MainEditor = Editor();
-
-
 
     return;
 }

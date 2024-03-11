@@ -190,6 +190,9 @@ int main() {
 #include <vector>
 #include <Windows.h>
 #include <iomanip>
+#include <fstream>
+#include <sstream>
+
 using namespace std;
 
 #define MainMenu 0 //Означає відображенняж. головного меню
@@ -202,16 +205,24 @@ using namespace std;
 #define CopyText 7 //Означає відображення текстового редактору з командами копіювання тексту
 #define AllSessions 8 //Означає відображення всіх сесій
 
+#define NameSaveFile "SessionSave.txt"
+
+struct SavePattern {
+    string SessionName;
+    string TextLine;
+};
+
 class Session {
 private:
     string SessionName;
     string TextLine;
+    bool Saved;
 public:
     string GetName() {
         return SessionName;
     }
 
-    Session(string SessionName, string TextLine = "") : SessionName(SessionName), TextLine(TextLine) {};
+    Session(string SessionName, string TextLine = "", bool Saved = false) : SessionName(SessionName), TextLine(TextLine), Saved(Saved) {};
 
     string GetTextLine() {
         return TextLine;
@@ -224,6 +235,19 @@ public:
     void DeleteFromText(int StartPos, int EndPos) {
         TextLine.erase(StartPos, EndPos);
     }
+
+    void SaveFile(bool Mode) {// true - перезапис, false - без перезапису
+        Saved = true;
+        fstream SaveStream(NameSaveFile, Mode ? ios::out : ios::app);
+        SaveStream << SessionName << "+" << TextLine << endl;
+        SaveStream.close();
+    }
+
+    bool FileIsSaved() {
+        return Saved;
+    }
+
+
 };
 
 class Editor {
@@ -248,35 +272,140 @@ private:
             return false;
         }
     }
+
+    void SaveAllSessions() {
+        if (!AvailableSessions.empty()) {
+            AvailableSessions[0].SaveFile(true);
+            if (AvailableSessions.size() - 1 > 0) {
+                for (int i = 1; i < AvailableSessions.size(); i++) {
+                    AvailableSessions[i].SaveFile(false);
+                }
+            }
+
+        }
+    }
 public:
     Editor() {
         Render(MainMenu);
         ActiveSession = NULL;
     }
 
-    void ShowAvailableSessionsForm() {
+    void SessionBackupFromSave() {
+        fstream ReadStream(NameSaveFile, ios::in);
+
+        if (!ReadStream.is_open()) {
+            system("cls");
+            cout << " !!! Збережень немає !!!" << endl;
+            Render(MainMenu);
+        }
+
+        string SaveLine;
+
+        while (getline(ReadStream, SaveLine)) {
+            SavePattern Example;
+            istringstream AnotherStream(SaveLine);
+
+            getline(AnotherStream, Example.SessionName, '+');
+            getline(AnotherStream, Example.TextLine, '+');
+
+            AvailableSessions.push_back(Session(Example.SessionName, Example.TextLine));
+        }
+
         system("cls");
+        cout << " < Сесії було завантажено >" << endl;
+        Render(MainMenu);
+
+        ReadStream.close();
+    }
+
+    void SessionsDelete() {
+        int SessionIndex;
+
+        cout << "Введіть індекс сесії для видалення: ";
+        cin >> SessionIndex;
+
+        if (SessionIndex <= AvailableSessions.size() - 1 && !(SessionIndex < 0)) {
+            AvailableSessions.erase(AvailableSessions.begin() + SessionIndex);
+            system("cls");
+
+            if (AvailableSessions.empty()) {
+                Render(MainMenu);
+            }
+            else {
+                SaveAllSessions();
+                ShowAvailableSessionsForm();
+            }
+        }
+
+        else {
+            system("cls");
+            cout << " !!! Ви обрали неіснуючий індекс !!!" << endl;
+            ShowAvailableSessionsForm();
+        }
+    }
+
+    void SaveAllSessionsForm() {
+        system("cls");
+        SaveAllSessions();
+        cout << " < Дані було збережено у файл " << NameSaveFile << "!>" << endl;
+        ShowAvailableSessionsForm();
+    }
+
+    void SessionSelector() {
+        int Choice;
+        cin >> Choice;
+
+        switch (Choice) {
+        case 0: {
+            system("cls");
+            Render(MainMenu);
+        }break;
+
+        case 1: {
+            SessionsDelete();
+        }break;
+
+        case 2: {
+            SaveAllSessionsForm();
+        }break;
+
+        case 3: {
+            SetActiveSessionForm();
+        }break;
+
+        case 4: {
+
+        }break;
+
+        case 5: {
+
+        }break;
+
+        default: {
+            system("cls");
+            cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(MainMenu);
+        }
+        }
+    }
+
+    void ShowAvailableSessionsForm() {
         if (!ShowAvailableSessions()) {
             cout << "!!! Немає доступних сесій !!!" << endl;
             Render(MainMenu);
             return;
         }
         else {
-            system("pause");
-            system("cls");
-            Render(MainMenu);
+            cout << "1 - Видалити сесію     2 - Зберегти всі сесії у файл     3 - Обрати сесію     \n4 - Сортувати за ростом     5 - Сортувати за убуванням     \n0 - Вихід" << endl << endl;
+            cout << "Оберіть команду: ";
+            SessionSelector();
+
+            /*system("cls");
+            Render(MainMenu);*/
         }
     }
 
     void SetActiveSessionForm() {
-        system("cls");
-        ShowAvailableSessions();
-
-        if (AvailableSessions.size() == 0) {
-            cout << "!!! Немає жодної сесії !!!" << endl;
-            Render(MainMenu);
-        }
-
         cout << "Введіть номер сесії: ";
         int SessionNumber;
         cin >> SessionNumber;
@@ -289,13 +418,12 @@ public:
         else {
             system("cls");
             cout << "!!! Сесії під таким індексом не існує !!!" << endl;
-            Render(MainMenu);
+            ShowAvailableSessionsForm();
             return;
         }
     }
 
     void CreateNewSession() {
-        system("cls");
 
         string Name;
         cout << "Введіть ім'я сесії: ";
@@ -323,20 +451,19 @@ public:
         }break;
 
         case 1: {
+            system("cls");
             CreateNewSession();
         }break;
 
         case 2: {
+            system("cls");
             ShowAvailableSessionsForm();
         }break;
 
         case 3: {
-            //Файл!
+            SessionBackupFromSave();
         }break;
 
-        case 4: {
-            SetActiveSessionForm();
-        }break;
         default: {
             system("cls");
             cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
@@ -555,6 +682,80 @@ public:
         }
     }
 
+    void CopyInText() {
+        int Choice;
+        cin >> Choice;
+
+        switch (Choice) {
+        case 0: {
+            system("cls");
+            Render(TextChange);
+        }break;
+
+        case 1: {
+            int Pos, Count;
+            cout << "Введіть через пробіл номер символу з якого почати копіювання та кількість символів після нього: ";
+            cin >> Pos >> Count;
+            string newText = ActiveSession->GetTextLine().substr(Pos, Count);
+
+            if (!OpenClipboard(nullptr)) {
+                cout << " !!! Не вдалось відкрити буфер обміну !!!" << endl;
+                Render(TextChange);
+                return;
+            }
+
+            HANDLE hClipboardData = GetClipboardData(CF_TEXT);
+            if (hClipboardData == nullptr) {
+                cout << " !!! Не вдалось отримати дані з буферу обміну !!!" << endl;
+                CloseClipboard();
+                Render(TextChange);
+                return;
+            }
+
+            char* clipboardText = static_cast<char*>(GlobalLock(hClipboardData));
+
+            string combinedText = clipboardText;
+            combinedText += newText;
+
+            GlobalUnlock(hClipboardData);
+
+            HGLOBAL hNewClipboardData = GlobalAlloc(GMEM_MOVEABLE, combinedText.size() + 1);
+            if (hNewClipboardData == nullptr) {
+                cout << " !!! Не вдалось виділити пам'ять для нових даних у буфері обміну !!!" << endl;
+                CloseClipboard();
+                Render(TextChange);
+                return;
+            }
+
+            char* newBuffer = static_cast<char*>(GlobalLock(hNewClipboardData));
+            strcpy_s(newBuffer, combinedText.size() + 1, combinedText.c_str());
+            GlobalUnlock(hNewClipboardData);
+
+            if (SetClipboardData(CF_TEXT, hNewClipboardData) == nullptr) {
+                cout << " !!! Не вдалось встановити нові дані у буфер обміну !!!" << endl;
+                CloseClipboard();
+                Render(TextChange);
+                return;
+            }
+
+            CloseClipboard();
+
+            system("cls");
+
+            //В будущем поправить!!! Потому что оно не отображается в буфере
+
+            Render(TextChange);
+
+        }break;
+
+        default: {
+            system("cls");
+            cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(TextChange);
+        }
+        }
+    }
+
     void TextChangeSelector() {
         int Choice;
         cin >> Choice;
@@ -587,7 +788,8 @@ public:
         }break;
 
         case 5: {
-
+            system("cls");
+            Render(CopyText);
         }break;
         default: {
             system("cls");
@@ -606,7 +808,7 @@ public:
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-            cout << "1 - Створити сесію      2 - Подивитися перелік сесій      3 - Завантажити сесії з файлу     4 - Обрати сесію     \n0 - Вихід з програми" << endl;
+            cout << "1 - Створити сесію      2 - Перегляд сесій та дії з ними      3 - Завантажити сесії з файлу     0 - Вихід з програми" << endl;
             cout << endl << " Оберіть команду: ";
             NewSessionSelector();
         }
@@ -651,7 +853,9 @@ public:
             }break;
 
             case CopyText: {
-                //Копіювання тексту
+                cout << "1 - Скопіювати текст за номером початку і кількістю символів після нього      0 - Вихід" << endl;
+                cout << endl << " Оберіть команду: ";
+                CopyInText();
             }break;
             }
 

@@ -192,13 +192,13 @@ int main() {
 #include <iomanip>
 using namespace std;
 
-#define MainMenu 0 //Означає перехід до головного меню
+#define MainMenu 0 //Означає відображенняж. головного меню
 #define TextChange 1 //Означає відображення текстового редактору
-#define InputText 2 //Означає відображення текстового редактору з можливістю вставки тексту
-#define CutText 3 //Означає відображення текстового редактору з можливістю вирізки тексту
-#define DeleteText 4 //Означає відображення текстового редактору з можливістю видалення тексту
-#define MoveText 5 //Означає відображення текстового редактору з можливістю переміщення тексту
-#define CopyText 6 //Означає відображення текстового редактору з можливістю копіювання тексту
+#define InputText 2 //Означає відображення текстового редактору з командами вставки тексту
+#define CutText 3 //Означає відображення текстового редактору з командами вирізки тексту
+#define DeleteText 4 //Означає відображення текстового редактору з командами видалення тексту
+#define MoveText 5 //Означає відображення текстового редактору з командами переміщення тексту
+#define CopyText 6 //Означає відображення текстового редактору з командами копіювання тексту
 #define AllSessions 7 //Означає відображення всіх сесій
 
 class Session {
@@ -218,6 +218,10 @@ public:
 
     void InputToText(int Position, string Text) {
         TextLine.insert(Position, Text);
+    }
+
+    void DeleteFromText(int StartPos, int EndPos) {
+        TextLine.erase(StartPos, EndPos);
     }
 };
 
@@ -374,7 +378,7 @@ public:
             CloseClipboard();
 
             int Pos;
-            cout << "Введіть номер символу перед яким треба поставити текст: ";
+            cout << " Введіть номер символу перед яким треба поставити текст: ";
             cin >> Pos;
 
             ActiveSession->InputToText(Pos, clipboardText);
@@ -384,15 +388,16 @@ public:
 
         case 2: {
             string Text;
-            cout << "Введіть текст, який треба вставити: ";
+            cout << " Введіть текст, який треба вставити: ";
             cin.ignore();
             getline(cin, Text);
             int Pos;
-            cout << "Введіть номер символу перед яким треба поставити текст: ";
+            cout << " Введіть номер символу перед яким треба поставити текст: ";
             cin >> Pos;
 
             ActiveSession->InputToText(Pos, Text);
 
+            system("cls");
             Render(TextChange);
         }break;
 
@@ -416,43 +421,89 @@ public:
         }break;
 
         case 1: {
+            int Pos, Count;
+            cout << "Введіть через пробіл номер символу з якого почати вирізання та кількість символів після нього: ";
+            cin >> Pos >> Count;
+            string newText = ActiveSession->GetTextLine().substr(Pos, Count);
+
             if (!OpenClipboard(nullptr)) {
-                cout << "Не удалось открыть буфер обмена." << std::endl;
+                cout << " !!! Не вдалось відкрити буфер обміну !!!" << endl;
+                Render(TextChange);
                 return;
             }
 
-            // Очищаем текущий содержимое буфера обмена
-            if (!EmptyClipboard()) {
-                std::cerr << "Не удалось очистить буфер обмена." << std::endl;
-                CloseClipboard();
-                return;
-            }
-
-            // Создаем глобальную память для копируемых данных
-            std::string textToCopy = "Текст для копирования в буфер обмена.";
-            HGLOBAL hClipboardData = GlobalAlloc(GMEM_MOVEABLE, textToCopy.size() + 1);
+            HANDLE hClipboardData = GetClipboardData(CF_TEXT);
             if (hClipboardData == nullptr) {
-                cout << "Не удалось выделить память для данных в буфере обмена." << std::endl;
+                cout << " !!! Не вдалось отримати дані з буферу обміну !!!" << endl;
                 CloseClipboard();
+                Render(TextChange);
                 return;
             }
 
-            // Копируем текст в созданную глобальную память
-            char* buffer = static_cast<char*>(GlobalLock(hClipboardData));
-            strcpy_s(buffer, textToCopy.size() + 1, textToCopy.c_str());
+            char* clipboardText = static_cast<char*>(GlobalLock(hClipboardData));
+
+            string combinedText = clipboardText;
+            combinedText += newText;
+
             GlobalUnlock(hClipboardData);
 
-            // Помещаем данные в буфер обмена
-            if (SetClipboardData(CF_TEXT, hClipboardData) == nullptr) {
-                cout << "Не удалось установить данные в буфер обмена." << std::endl;
+            HGLOBAL hNewClipboardData = GlobalAlloc(GMEM_MOVEABLE, combinedText.size() + 1);
+            if (hNewClipboardData == nullptr) {
+                cout << " !!! Не вдалось виділити пам'ять для нових даних у буфері обміну !!!" << endl;
                 CloseClipboard();
+                Render(TextChange);
                 return;
             }
 
-            // Закрываем буфер обмена
+            char* newBuffer = static_cast<char*>(GlobalLock(hNewClipboardData));
+            strcpy_s(newBuffer, combinedText.size() + 1, combinedText.c_str());
+            GlobalUnlock(hNewClipboardData);
+
+            if (SetClipboardData(CF_TEXT, hNewClipboardData) == nullptr) {
+                cout << " !!! Не вдалось встановити нові дані у буфер обміну !!!" << endl;
+                CloseClipboard();
+                Render(TextChange);
+                return;
+            }
+
             CloseClipboard();
 
-            std::cout << "Текст успешно скопирован в буфер обмена." << std::endl;
+            system("cls");
+
+            //В будущем поправить!!! Потому что оно не отображается в буфере
+
+            ActiveSession->DeleteFromText(Pos, Pos + Count + 1);
+
+            Render(TextChange);
+
+        }break;
+
+        default: {
+            system("cls");
+            cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(TextChange);
+        }
+        }
+    }
+
+    void DeleteFromText() {
+        int Choice;
+        cin >> Choice;
+
+        switch (Choice) {
+        case 0: {
+            system("cls");
+            Render(TextChange);
+        }break;
+
+        case 1: {
+            int StartPos, Count;
+            cout << "Введіть через пробіл номер символу з якого почати видалення та кількість символів після нього: ";
+            cin >> StartPos >> Count;
+            ActiveSession->DeleteFromText(StartPos, StartPos + Count + 1);
+
+            system("cls");
+            Render(TextChange);
         }break;
 
         default: {
@@ -485,7 +536,8 @@ public:
         }break;
 
         case 3: {
-
+            system("cls");
+            Render(DeleteText);
         }break;
 
         case 4: {
@@ -545,11 +597,13 @@ public:
             }break;
 
             case DeleteText: {
-                //Функція видалення тексту
+                cout << "1 - Ввести номер початкового символу та кількість символів після початку для видалення      0 - Вихід" << endl;
+                cout << endl << " Оберіть команду: ";
+                DeleteFromText();
             }break;
 
-                //Переміщення тексту
             case MoveText: {
+                //Переміщення тексту
             }break;
 
             case CopyText: {

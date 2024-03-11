@@ -247,50 +247,6 @@ public:
         return SessionSaveStatus;
     }
 };
-
-class Caretaker {
-private:
-    vector<Memento*> mementos_;
-
-    Session* originator_;
-
-public:
-    Caretaker(Session* originator) : originator_(originator) {
-    }
-
-    ~Caretaker() {
-        for (auto m : mementos_) delete m;
-    }
-
-    void Backup() {
-        this->mementos_.push_back(this->originator_->Save());
-    }
-    void Undo() {
-        if (!this->mementos_.size()) {
-            return;
-        }
-        Memento* memento = this->mementos_.back();
-        this->mementos_.pop_back();
-
-        try {
-            this->originator_->Restore(memento);
-        }
-        catch (...) {
-            this->Undo();
-        }
-    }
-    void ShowHistory() const {
-        for (Memento* memento : this->mementos_) {
-            std::cout << memento->GetSessionName() << "\n";
-        }
-    }
-};
-
-struct SavePattern {
-    string SessionName;
-    string TextLine;
-};
-
 class Session {
 private:
     string SessionName;
@@ -344,6 +300,55 @@ public:
 
 };
 
+class Caretaker {
+private:
+    vector<Memento*> mementos_;
+
+    Session* originator_;
+
+public:
+    Caretaker(Session* originator) : originator_(originator) {
+    }
+
+    ~Caretaker() {
+        for (auto memento : mementos_) delete memento;
+    }
+
+    void Backup() {
+        this->mementos_.push_back(this->originator_->Save());
+    }
+    void Undo() {
+        if (!this->mementos_.size()) {
+            return;
+        }
+        Memento* memento = this->mementos_.back();
+        this->mementos_.pop_back();
+
+        try {
+            this->originator_->Restore(memento);
+        }
+        catch (...) {
+            this->Undo();
+        }
+    }
+
+    vector<Memento*> GetActiveSessionMemento() {
+        return mementos_;
+    }
+
+    /*void ShowHistory() const {
+        for (Memento* memento : this->mementos_) {
+            cout << memento->GetSessionName() << "\n";
+        }
+    }*/
+};
+
+struct SavePattern {
+    string SessionName;
+    string TextLine;
+};
+
+
 struct FunctorByLowest {
     bool operator()(Session& A, Session& B) {
         return B.GetName() > A.GetName();
@@ -360,6 +365,7 @@ class Editor {
 private:
     vector<Session> AvailableSessions;
     Session* ActiveSession;
+    Caretaker* History;
 
     bool ShowAvailableSessions() {
         if (AvailableSessions.empty()) {
@@ -372,6 +378,9 @@ private:
     bool SetActiveSession(int SessionIndex) {
         if (SessionIndex <= AvailableSessions.size() - 1 && !(SessionIndex < 0)) {
             ActiveSession = &AvailableSessions[SessionIndex];
+
+            History = new Caretaker(ActiveSession);
+
             return true;
         }
         else {
@@ -629,7 +638,11 @@ public:
             cout << " Введіть номер символу перед яким треба поставити текст: ";
             cin >> Pos;
 
+            ActiveSession->SetTauntEvent("Введення");
+            History->Backup();
+
             ActiveSession->InputToText(Pos, clipboardText);
+
 
             Render(TextChange);
         }break;
@@ -642,6 +655,9 @@ public:
             int Pos;
             cout << " Введіть номер символу перед яким треба поставити текст: ";
             cin >> Pos;
+
+            ActiveSession->SetTauntEvent("Введення");
+            History->Backup();
 
             ActiveSession->InputToText(Pos, Text);
 
@@ -720,6 +736,9 @@ public:
 
             //В будущем поправить!!! Потому что оно не отображается в буфере
 
+            ActiveSession->SetTauntEvent("Вирізання");
+            History->Backup();
+
             ActiveSession->DeleteFromText(Pos, Pos + Count + 1);
 
             Render(TextChange);
@@ -748,6 +767,10 @@ public:
             int StartPos, Count;
             cout << "Введіть через пробіл номер символу з якого почати видалення та кількість символів після нього: ";
             cin >> StartPos >> Count;
+
+            ActiveSession->SetTauntEvent("Видалення");
+            History->Backup();
+
             ActiveSession->DeleteFromText(StartPos, StartPos + Count + 1);
 
             system("cls");
@@ -778,6 +801,9 @@ public:
             cin >> StartPos >> Count;
 
             string SubText = ActiveSession->GetTextLine().substr(StartPos, Count);
+
+            ActiveSession->SetTauntEvent("Переміщення");
+            History->Backup();
 
             ActiveSession->DeleteFromText(StartPos, StartPos + Count + 1);
 
@@ -912,7 +938,9 @@ public:
             Render(CopyText);
         }break;
         case 6: {
-            //Відкат
+            system("cls");
+            History->Undo();
+            Render(TextChange);
         }break;
         default: {
             system("cls");
@@ -937,9 +965,11 @@ public:
         }
 
         else if (Variative >= TextChange && Variative <= CopyText) {
+            vector<Memento*> TempMemento = History->GetActiveSessionMemento();
+
             cout << "[Ім'я сесії: " << ActiveSession->GetName() << "]" << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AsssssssAA" << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "A" << setw(14) << setprecision(14) << setfill(' ') << left << "AsssssssAA" << "|" << endl;
             cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AAsadasdA" << "|" << endl;
             cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "|" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AasdasdAA" << "|" << endl;
             cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << "3" << setw(14) << setprecision(14) << setfill(' ') << left << "AAA" << "|" << endl;

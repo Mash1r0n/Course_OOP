@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <cstdlib>
 
 using namespace std;
 
@@ -204,6 +205,7 @@ private:
     vector<pair<Session*, Caretaker*>> AvailableSessions;
     Session* ActiveSession;
     Caretaker* History;
+    bool AlreadyLoaded;
 
     bool ShowAvailableSessions() {
         if (AvailableSessions.empty()) {
@@ -244,6 +246,7 @@ public:
     Editor() {
         Render(MainMenu);
         ActiveSession = NULL;
+        AlreadyLoaded = false;
     }
 
     void SessionBackupFromSave() {
@@ -252,6 +255,12 @@ public:
         if (!ReadStream.is_open()) {
             system("cls");
             cout << " !!! Збережень немає !!!" << endl;
+            Render(MainMenu);
+        }
+
+        else if (AlreadyLoaded) {
+            system("cls");
+            cout << " !!! Ви вже завантажували дані !!!" << endl;
             Render(MainMenu);
         }
 
@@ -288,6 +297,9 @@ public:
 
         system("cls");
         cout << " < Сесії було завантажено >" << endl;
+
+        AlreadyLoaded = true;
+
         Render(MainMenu);
 
         ReadStream.close();
@@ -423,8 +435,7 @@ public:
 
         string Text;
         cout << "Введіть початковий текст для сесії (необов'язково): ";
-        cin.ignore();
-        getline(std::cin, Text);
+        cin >> Text;
 
         system("cls");
 
@@ -442,7 +453,7 @@ public:
         cin >> Choice;
         switch (Choice) {
         case 0: {
-            exit;
+            exit(1);
         }break;
 
         case 1: {
@@ -509,15 +520,15 @@ public:
 
             ActiveSession->InputToText(Pos, clipboardText);
 
-
+            system("cls");
             Render(TextChange);
+
         }break;
 
         case 2: {
             string Text;
             cout << " Введіть текст, який треба вставити: ";
-            cin.ignore();
-            getline(cin, Text);
+            cin >> Text;
             int Pos;
             cout << " Введіть номер символу перед яким треба поставити текст: ";
             cin >> Pos;
@@ -529,6 +540,7 @@ public:
 
             system("cls");
             Render(TextChange);
+
         }break;
 
         default: {
@@ -557,6 +569,7 @@ public:
             string newText = ActiveSession->GetTextLine().substr(Pos, Count);
 
             if (!OpenClipboard(nullptr)) {
+                system("cls");
                 cout << " !!! Не вдалось відкрити буфер обміну !!!" << endl;
                 Render(TextChange);
                 return;
@@ -564,6 +577,7 @@ public:
 
             HANDLE hClipboardData = GetClipboardData(CF_TEXT);
             if (hClipboardData == nullptr) {
+                system("cls");
                 cout << " !!! Не вдалось отримати дані з буферу обміну !!!" << endl;
                 CloseClipboard();
                 Render(TextChange);
@@ -579,6 +593,7 @@ public:
 
             HGLOBAL hNewClipboardData = GlobalAlloc(GMEM_MOVEABLE, combinedText.size() + 1);
             if (hNewClipboardData == nullptr) {
+                system("cls");
                 cout << " !!! Не вдалось виділити пам'ять для нових даних у буфері обміну !!!" << endl;
                 CloseClipboard();
                 Render(TextChange);
@@ -590,6 +605,7 @@ public:
             GlobalUnlock(hNewClipboardData);
 
             if (SetClipboardData(CF_TEXT, hNewClipboardData) == nullptr) {
+                system("cls");
                 cout << " !!! Не вдалось встановити нові дані у буфер обміну !!!" << endl;
                 CloseClipboard();
                 Render(TextChange);
@@ -901,8 +917,6 @@ void main()
     SetConsoleOutputCP(1251);
 
     Editor MainEditor = Editor();
-
-    //1 - 1 - 2 - 0 - 0 Виникають баги з цими кроками, поправити!!!
 
     return;
 }

@@ -229,6 +229,7 @@ private:
 public:
     ConcreteMemento(string Name, string TextLine, string TauntEvent) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent) {
     }
+
     string GetSessionName() const override {
         return SessionName;
     }
@@ -241,6 +242,7 @@ public:
         return SessionTauntEvent;
     }
 };
+
 class Session {
 private:
     string SessionName;
@@ -325,6 +327,10 @@ public:
         }
     }
 
+    void MementosBackupFromFile(ConcreteMemento* memento) {
+        mementos_.push_back(memento);
+    }
+
     vector<Memento*> GetActiveSessionMemento() {
         return mementos_;
     }
@@ -333,6 +339,9 @@ public:
         fstream SaveStream(NameSaveFile, ios::app);
 
         if (mementos_.empty()) {
+            SaveStream << endl;
+            SaveStream.close();
+
             return;
         }
 
@@ -357,6 +366,11 @@ struct SavePattern {
     string TextLine;
 };
 
+struct SavePatterForMemento {
+    string SessionName;
+    string TextLine;
+    string TauntEvent;
+};
 
 struct FunctorByLowest {
     bool operator()(pair<Session*, Caretaker*>& A, pair<Session*, Caretaker*>& B) {
@@ -433,9 +447,28 @@ public:
             istringstream AnotherStream(SaveLine);
 
             getline(AnotherStream, Example.SessionName, '+');
-            getline(AnotherStream, Example.TextLine, '+');
+            getline(AnotherStream, Example.TextLine, '~');
 
-            /*AvailableSessions.push_back(Session(Example.SessionName, Example.TextLine, true));*/
+            Session* TempSessionData = new Session(Example.SessionName, Example.TextLine, true);
+
+            string MementoData;
+
+            Caretaker* TempCaretaker = new Caretaker(TempSessionData);
+
+            while (getline(AnotherStream, MementoData, '~')) {
+                istringstream ParseMementoData(MementoData);
+
+                SavePatterForMemento TempConcreteMemento;
+
+                getline(ParseMementoData, TempConcreteMemento.SessionName, '+');
+                getline(ParseMementoData, TempConcreteMemento.TextLine, '+');
+                getline(ParseMementoData, TempConcreteMemento.TauntEvent, '~');
+
+                TempCaretaker->MementosBackupFromFile(new ConcreteMemento(TempConcreteMemento.SessionName, TempConcreteMemento.TextLine, TempConcreteMemento.TauntEvent));
+            }
+
+            AvailableSessions.push_back(make_pair(TempSessionData, TempCaretaker));
+
         }
 
         system("cls");

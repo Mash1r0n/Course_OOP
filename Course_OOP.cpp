@@ -191,7 +191,6 @@ int main() {
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <stack>
 
 using namespace std;
 
@@ -218,7 +217,6 @@ public:
     virtual string GetSessionName() const = 0;
     virtual string GetSessionTextLine() const = 0;
     virtual string GetSessionTauntEvent() const = 0;
-    virtual bool GetSessionSaveStatus() const = 0;
 };
 
 class ConcreteMemento : public Memento {
@@ -226,10 +224,10 @@ private:
     string SessionName;
     string SessionTextLine;
     string SessionTauntEvent;
-    bool SessionSaveStatus;
+
 
 public:
-    ConcreteMemento(string Name, string TextLine, string TauntEvent, bool Saved) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent), SessionSaveStatus(Saved) {
+    ConcreteMemento(string Name, string TextLine, string TauntEvent) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent) {
     }
     string GetSessionName() const override {
         return SessionName;
@@ -242,23 +240,19 @@ public:
     string GetSessionTauntEvent() const override {
         return SessionTauntEvent;
     }
-
-    bool GetSessionSaveStatus() const override {
-        return SessionSaveStatus;
-    }
 };
 class Session {
 private:
     string SessionName;
     string TextLine;
     string LastTauntEvent;
-    bool Saved;
+    bool Saved; //С этим ещё предстоит попариться
 public:
     string GetName() {
         return SessionName;
     }
 
-    Session(string SessionName, string TextLine = "", string TauntEvent = "", bool Saved = false) : SessionName(SessionName), TextLine(TextLine), LastTauntEvent(TauntEvent), Saved(Saved) {};
+    Session(string SessionName, string TextLine = "", bool saved = false, string TauntEvent = "") : SessionName(SessionName), TextLine(TextLine), LastTauntEvent(TauntEvent), Saved(saved) {};
 
     string GetTextLine() {
         return TextLine;
@@ -269,14 +263,13 @@ public:
     }
 
     Memento* Save() {
-        return new ConcreteMemento(SessionName, TextLine, LastTauntEvent, Saved);
+        return new ConcreteMemento(SessionName, TextLine, LastTauntEvent);
     }
 
     void Restore(Memento* Backup) {
         SessionName = Backup->GetSessionName();
         TextLine = Backup->GetSessionTextLine();
         LastTauntEvent = Backup->GetSessionTauntEvent();
-        Saved = Backup->GetSessionSaveStatus();
     }
 
     void SetTauntEvent(string NameOfTaunt) {
@@ -294,7 +287,7 @@ public:
     void SaveFile(bool Mode) {// true - перезапис, false - без перезапису
         Saved = true;
         fstream SaveStream(NameSaveFile, Mode ? ios::out : ios::app);
-        SaveStream << SessionName << "+" << TextLine << endl;
+        SaveStream << SessionName << "+" << TextLine;
         SaveStream.close();
     }
 
@@ -336,6 +329,22 @@ public:
         return mementos_;
     }
 
+    void SaveHistory() {
+        fstream SaveStream(NameSaveFile, ios::app);
+
+        if (mementos_.empty()) {
+            return;
+        }
+
+        for (Memento* TempMem : mementos_) {
+            SaveStream << "~" << TempMem->GetSessionName() << "+" << TempMem->GetSessionTextLine() << "+" << TempMem->GetSessionTauntEvent();
+        }
+
+        SaveStream << "~" << endl;
+
+        SaveStream.close();
+    }
+
     /*void ShowHistory() const {
         for (Memento* memento : this->mementos_) {
             cout << memento->GetSessionName() << "\n";
@@ -363,7 +372,7 @@ struct FunctorByHighest {
 
 class Editor {
 private:
-    vector<Session> AvailableSessions;
+    vector<pair<Session, Caretaker>> AvailableSessions;
     Session* ActiveSession;
     Caretaker* History;
 
@@ -391,9 +400,12 @@ private:
     void SaveAllSessions() {
         if (!AvailableSessions.empty()) {
             AvailableSessions[0].SaveFile(true);
+            Caretaker(&AvailableSessions[0]).SaveHistory();
+
             if (AvailableSessions.size() - 1 > 0) {
                 for (int i = 1; i < AvailableSessions.size(); i++) {
                     AvailableSessions[i].SaveFile(false);
+                    Caretaker(&AvailableSessions[i]).SaveHistory();
                 }
             }
 
@@ -423,7 +435,7 @@ public:
             getline(AnotherStream, Example.SessionName, '+');
             getline(AnotherStream, Example.TextLine, '+');
 
-            AvailableSessions.push_back(Session(Example.SessionName, Example.TextLine));
+            AvailableSessions.push_back(Session(Example.SessionName, Example.TextLine, true));
         }
 
         system("cls");

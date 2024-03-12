@@ -340,7 +340,7 @@ public:
             SaveStream << "~" << TempMem->GetSessionName() << "+" << TempMem->GetSessionTextLine() << "+" << TempMem->GetSessionTauntEvent();
         }
 
-        SaveStream << "~" << endl;
+        SaveStream << "~" << endl; //Разобраться с тем, что сделать, если вдруг у меня нечего сохранять, тогда endl не сработает и всё слепится в 1 строку
 
         SaveStream.close();
     }
@@ -359,20 +359,20 @@ struct SavePattern {
 
 
 struct FunctorByLowest {
-    bool operator()(Session& A, Session& B) {
-        return B.GetName() > A.GetName();
+    bool operator()(pair<Session*, Caretaker*>& A, pair<Session*, Caretaker*>& B) {
+        return B.first->GetName() > A.first->GetName();
     }
 };
 
 struct FunctorByHighest {
-    bool operator()(Session& A, Session& B) {
-        return A.GetName() > B.GetName();
+    bool operator()(pair<Session*, Caretaker*>& A, pair<Session*, Caretaker*>& B) {
+        return A.first->GetName() > B.first->GetName();
     }
 };
 
 class Editor {
 private:
-    vector<pair<Session, Caretaker>> AvailableSessions;
+    vector<pair<Session*, Caretaker*>> AvailableSessions;
     Session* ActiveSession;
     Caretaker* History;
 
@@ -386,9 +386,9 @@ private:
 
     bool SetActiveSession(int SessionIndex) {
         if (SessionIndex <= AvailableSessions.size() - 1 && !(SessionIndex < 0)) {
-            ActiveSession = &AvailableSessions[SessionIndex];
+            ActiveSession = AvailableSessions[SessionIndex].first;
 
-            History = new Caretaker(ActiveSession);
+            History = AvailableSessions[SessionIndex].second;
 
             return true;
         }
@@ -399,13 +399,13 @@ private:
 
     void SaveAllSessions() {
         if (!AvailableSessions.empty()) {
-            AvailableSessions[0].SaveFile(true);
-            Caretaker(&AvailableSessions[0]).SaveHistory();
+            AvailableSessions[0].first->SaveFile(true);
+            AvailableSessions[0].second->SaveHistory();
 
             if (AvailableSessions.size() - 1 > 0) {
                 for (int i = 1; i < AvailableSessions.size(); i++) {
-                    AvailableSessions[i].SaveFile(false);
-                    Caretaker(&AvailableSessions[i]).SaveHistory();
+                    AvailableSessions[i].first->SaveFile(false);
+                    AvailableSessions[i].second->SaveHistory();
                 }
             }
 
@@ -435,7 +435,7 @@ public:
             getline(AnotherStream, Example.SessionName, '+');
             getline(AnotherStream, Example.TextLine, '+');
 
-            AvailableSessions.push_back(Session(Example.SessionName, Example.TextLine, true));
+            /*AvailableSessions.push_back(Session(Example.SessionName, Example.TextLine, true));*/
         }
 
         system("cls");
@@ -452,6 +452,9 @@ public:
         cin >> SessionIndex;
 
         if (SessionIndex <= AvailableSessions.size() - 1 && !(SessionIndex < 0)) {
+            delete AvailableSessions[SessionIndex].first;
+            delete AvailableSessions[SessionIndex].second;
+
             AvailableSessions.erase(AvailableSessions.begin() + SessionIndex);
             system("cls");
 
@@ -577,7 +580,10 @@ public:
 
         system("cls");
 
-        AvailableSessions.push_back(Session(Name, Text));
+        Session* session = new Session(Name, Text);
+        Caretaker* caretaker = new Caretaker(session);
+
+        AvailableSessions.push_back(make_pair(session, caretaker));
         SetActiveSession(AvailableSessions.size() - 1);
 
         Render(TextChange);
@@ -977,8 +983,11 @@ public:
         }
 
         else if (Variative >= TextChange && Variative <= CopyText) {
+
             vector<Memento*> TempMemento = History->GetActiveSessionMemento();
+
             int CountCoef = TempMemento.size() > 5 ? TempMemento.size() - 5 : 0;
+
 
             cout << "[Ім'я сесії: " << ActiveSession->GetName() << "]" << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
@@ -1030,7 +1039,7 @@ public:
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
 
             for (int i = 0; i < AvailableSessions.size(); i++) {
-                cout << "| " << setw(4) << setprecision(4) << setfill(' ') << left << i << setw(112) << setprecision(112) << setfill(' ') << AvailableSessions[i].GetName().substr(0, 111) << "|" << endl;
+                cout << "| " << setw(4) << setprecision(4) << setfill(' ') << left << i << setw(112) << setprecision(112) << setfill(' ') << AvailableSessions[i].first->GetName().substr(0, 111) << "|" << endl;
             }
 
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;

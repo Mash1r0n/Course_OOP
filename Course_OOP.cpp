@@ -19,6 +19,7 @@ using namespace std;
 #define MoveText 6 //Означає відображення текстового редактору з командами переміщення тексту
 #define CopyText 7 //Означає відображення текстового редактору з командами копіювання тексту
 #define AllSessions 8 //Означає відображення всіх сесій
+#define Compare 9 //Означає порівняння з історії перед виконанням
 
 #define NameSaveFile "SessionSave.txt"
 
@@ -121,13 +122,23 @@ public:
     Caretaker(Session* originator) : originator_(originator) {
     }
 
+    Caretaker(Caretaker& copy) {
+        mementos_ = copy.mementos_;
+        originator_ = copy.originator_;
+    }
+
     ~Caretaker() {
         for (auto memento : mementos_) delete memento;
+    }
+
+    string GetUndoTextLine(int UndoNum) {
+        return mementos_[UndoNum > mementos_.size()-1 ? mementos_.size()-1 : mementos_.size() - UndoNum]->GetSessionTextLine();
     }
 
     void Backup() {
         this->mementos_.push_back(this->originator_->Save());
     }
+
     void Undo() {
         if (!this->mementos_.size()) {
             return;
@@ -206,6 +217,7 @@ private:
     Session* ActiveSession;
     Caretaker* History;
     bool AlreadyLoaded;
+    int UndoRewiewNumber;
 
     bool ShowAvailableSessions() {
         if (AvailableSessions.empty()) {
@@ -247,6 +259,7 @@ public:
         Render(MainMenu);
         ActiveSession = NULL;
         AlreadyLoaded = false;
+        UndoRewiewNumber = -1;
     }
 
     void SessionBackupFromSave() {
@@ -296,7 +309,7 @@ public:
         }
 
         system("cls");
-        cout << " < Сесії було завантажено >" << endl;
+        cout << " < Сеанси було завантажено >" << endl;
 
         AlreadyLoaded = true;
 
@@ -308,7 +321,7 @@ public:
     void SessionsDelete() {
         int SessionIndex;
 
-        cout << "Введіть індекс сесії для видалення: ";
+        cout << "Введіть індекс сеанс для видалення: ";
         cin >> SessionIndex;
 
         if (SessionIndex <= AvailableSessions.size() - 1 && !(SessionIndex < 0)) {
@@ -400,7 +413,7 @@ public:
             return;
         }
         else {
-            cout << "1 - Видалити сесію     2 - Зберегти всі сесії у файл     3 - Обрати сесію     \n4 - Сортувати за ростом     5 - Сортувати за убуванням     \n0 - Вихід" << endl << endl;
+            cout << "1 - Видалити сеанс     2 - Зберегти всі сеанси у файл     3 - Обрати сеанс     \n4 - Сортувати за ростом     5 - Сортувати за убуванням     \n0 - Вихід" << endl << endl;
             cout << "Оберіть команду: ";
             SessionSelector();
 
@@ -410,7 +423,7 @@ public:
     }
 
     void SetActiveSessionForm() {
-        cout << "Введіть номер сесії: ";
+        cout << "Введіть номер сеансу: ";
         int SessionNumber;
         cin >> SessionNumber;
 
@@ -421,7 +434,7 @@ public:
 
         else {
             system("cls");
-            cout << "!!! Сесії під таким індексом не існує !!!" << endl;
+            cout << "!!! Сеанса під таким індексом не існує !!!" << endl;
             ShowAvailableSessionsForm();
             return;
         }
@@ -430,11 +443,11 @@ public:
     void CreateNewSession() {
 
         string Name;
-        cout << "Введіть ім'я сесії: ";
+        cout << "Введіть ім'я сеансу: ";
         cin >> Name;
 
         string Text;
-        cout << "Введіть початковий текст для сесії (необов'язково): ";
+        cout << "Введіть початковий текст для сеансу (необов'язково): ";
         cin >> Text;
 
         system("cls");
@@ -821,7 +834,7 @@ public:
         }break;
         case 6: {
             system("cls");
-            History->Undo();
+            UndoSelector();
             Render(TextChange);
         }break;
         default: {
@@ -829,6 +842,52 @@ public:
             cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
             Render(TextChange);
         }
+        }
+    }
+
+    void UndoSelector() {
+        cout << "1 - Видалити останню подію      2 - Видалити останні декілька подій";
+        cout << endl << "Оберіть команду: ";
+        int Choice;
+        cin >> Choice;
+
+        switch (Choice) {
+        case 1: {
+            History->Undo();
+            Render(TextChange);
+        }break;
+
+        case 2: {
+            int Number;
+            cout << "Скільки подій ви бажаєте відмінити: ";
+            cin >> Number;
+            system("cls");
+            UndoRewiewNumber = Number;
+            Render(Compare);
+            cout << endl << endl << "Ви підтверджуєте відміну (Так): ";
+            string Answer;
+            cin >> Answer;
+            if (Answer == "Так") {
+                system("cls");
+
+                for (int i = 0; i < Number; i++) {
+                    History->Undo();
+                }
+
+                Render(TextChange);
+            }
+            else {
+                system("cls");
+                Render(TextChange);
+            }
+
+        }break;
+
+        default: {
+            system("cls");
+            cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(TextChange);
+        }          
         }
     }
 
@@ -841,7 +900,7 @@ public:
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-            cout << "1 - Створити сесію      2 - Перегляд сесій та дії з ними      3 - Завантажити сесії з файлу     0 - Вихід з програми" << endl;
+            cout << "1 - Створити сеанс      2 - Перегляд сеансів та дії з ними      3 - Завантажити сеанси з файлу     0 - Вихід з програми" << endl;
             cout << endl << " Оберіть команду: ";
             NewSessionSelector();
         }
@@ -855,11 +914,11 @@ public:
 
             cout << "[Ім'я сесії: " << ActiveSession->GetName() << "]" << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 1 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 1 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 2 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 2 ? (*(TempMemento.begin() + 1 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
-            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "|" << setw(3) << setprecision(3) << setfill(' ') << left << 3 << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 3 ? (*(TempMemento.begin() + 2 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
-            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 4 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 4 ? (*(TempMemento.begin() + 3 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
             cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 5 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 5 ? (*(TempMemento.begin() + 4 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 4 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 4 ? (*(TempMemento.begin() + 3 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "|" << setw(3) << setprecision(3) << setfill(' ') << left << 3 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 3 ? (*(TempMemento.begin() + 2 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 2 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 2 ? (*(TempMemento.begin() + 1 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 1 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 1 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
             switch (Variative) {
             case TextChange: {
@@ -907,6 +966,28 @@ public:
             }
 
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
+        }
+        else if (Variative == Compare) {
+            
+            cout << "Поточний стан:" << endl;
+            cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "                 |" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
+        
+            
+
+            cout << endl << endl << endl<< "Після відміни дій:" << endl;
+            cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << History->GetUndoTextLine(UndoRewiewNumber).substr(0, 99) << "                 |" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << "|                                                                                                                     |" << endl;
+            cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
         }
     }
 };

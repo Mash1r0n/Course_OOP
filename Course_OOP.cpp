@@ -7,6 +7,8 @@
 #include <sstream>
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
+
 
 using namespace std;
 
@@ -20,8 +22,9 @@ using namespace std;
 #define CopyText 7 //Означає відображення текстового редактору з командами копіювання тексту
 #define AllSessions 8 //Означає відображення всіх сесій
 #define Compare 9 //Означає порівняння з історії перед виконанням
+#define FilesMenu 10 //Означає порівняння з історії перед виконанням
 
-#define NameSaveFile "SessionSave.txt"
+//#define NameSaveFile "SessionSave.txt"
 
 #define SortByLowest 0 //Індекс для сортування за убуванням
 #define SortByHighest 1 //Індекс для сортування за зростанням
@@ -103,7 +106,7 @@ public:
         TextLine.erase(StartPos, EndPos);
     }
 
-    void SaveFile(bool Mode) {// true - перезапис, false - без перезапису
+    void SaveFile(string NameSaveFile, bool Mode) {// true - перезапис, false - без перезапису
         Saved = true;
         fstream SaveStream(NameSaveFile, Mode ? ios::out : ios::app);
         SaveStream << SessionName << "+" << TextLine;
@@ -162,7 +165,7 @@ public:
         return mementos_;
     }
 
-    void SaveHistory() {
+    void SaveHistory(string NameSaveFile) {
         fstream SaveStream(NameSaveFile, ios::app);
 
         if (mementos_.empty()) {
@@ -218,6 +221,7 @@ private:
     Caretaker* History;
     bool AlreadyLoaded;
     int UndoRewiewNumber;
+    string NameSaveFile;
 
     bool ShowAvailableSessions() {
         if (AvailableSessions.empty()) {
@@ -242,13 +246,13 @@ private:
 
     void SaveAllSessions() {
         if (!AvailableSessions.empty()) {
-            AvailableSessions[0].first->SaveFile(true);
-            AvailableSessions[0].second->SaveHistory();
+            AvailableSessions[0].first->SaveFile(NameSaveFile, true);
+            AvailableSessions[0].second->SaveHistory(NameSaveFile);
 
             if (AvailableSessions.size() - 1 > 0) {
                 for (int i = 1; i < AvailableSessions.size(); i++) {
-                    AvailableSessions[i].first->SaveFile(false);
-                    AvailableSessions[i].second->SaveHistory();
+                    AvailableSessions[i].first->SaveFile(NameSaveFile, false);
+                    AvailableSessions[i].second->SaveHistory(NameSaveFile);
                 }
             }
 
@@ -256,11 +260,24 @@ private:
     }
 public:
     Editor() {
-        Render(MainMenu);
+        Render(FilesMenu);
         ActiveSession = NULL;
         AlreadyLoaded = false;
         UndoRewiewNumber = -1;
     }
+
+    void ResetProgram() {
+        ActiveSession = NULL;
+        AlreadyLoaded = false;
+        UndoRewiewNumber = -1;
+        AvailableSessions.clear();
+    }
+
+    void SetNameSaveFile(string nameSaveFile) {
+        NameSaveFile = nameSaveFile;
+    }
+
+    string GetNameSaveFile() { return NameSaveFile; }
 
     void SessionBackupFromSave() {
         fstream ReadStream(NameSaveFile, ios::in);
@@ -466,7 +483,8 @@ public:
         cin >> Choice;
         switch (Choice) {
         case 0: {
-            exit(1);
+            system("cls");
+            Render(FilesMenu);
         }break;
 
         case 1: {
@@ -891,8 +909,153 @@ public:
         }
     }
 
+    vector<pair<string,string>> getCOIFiles() {
+        vector<pair<string, string>> files;
+        auto path = filesystem::current_path();
+
+        for (const auto& entry : std::filesystem::directory_iterator(path)) {
+            if (entry.path().extension() == ".coi") {
+                files.push_back(make_pair(entry.path().filename().string(), entry.path().string()));
+            }
+        }
+
+        return files;
+    }
+
+    void NewFileSelector() {
+        ResetProgram();
+        int Choice;
+        cin >> Choice;
+        switch (Choice) {
+        case 0: {
+            exit(1);
+        }break;
+            
+        case 1: {
+            system("cls");
+            CreateNewFile();
+            system("cls");
+            Render(MainMenu);
+        }break;
+
+        default: {
+            system("cls");
+            cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(FilesMenu);
+        }
+        }
+    }
+
+    void CreateNewFile() {
+        cout << "Введіть назву файла: ";
+        string Name;
+        cin >> Name;
+        fstream crt(Name += ".coi", ios::out);
+        SetNameSaveFile(Name);
+        crt.close();
+    }
+
+    void ChooseTheFile(int Index) {
+        vector<pair<string, string>> Paths = getCOIFiles();
+        SetNameSaveFile(Paths[Index].first);
+    }
+
+    bool DeleteIndexFile(string filepath) {
+        if (remove(filepath.c_str()) != 0) {
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+
+    bool DeleteTheFile(int Index) {
+        vector<pair<string, string>> Paths = getCOIFiles();
+        return DeleteIndexFile(Paths[Index].second);
+    }
+
+    void AlreadyHaveFileSelector() {
+        ResetProgram();
+        int Choice;
+        cin >> Choice;
+        switch (Choice) {
+        case 0: {
+            exit(1);
+        }break;
+
+        case 1: {
+            system("cls");
+            CreateNewFile();
+            system("cls");
+            Render(MainMenu);
+        }break;
+
+        case 2: {
+            cout << " Оберіть індекс файлу: ";
+            int Index;
+            cin >> Index;
+            ChooseTheFile(Index);
+            system("cls");
+            Render(MainMenu);
+        }break;
+
+        case 3: {
+            cout << " Оберіть індекс файлу: ";
+            int Index;
+            cin >> Index;
+            
+            system("cls");
+            
+            if (DeleteTheFile(Index)) {
+                cout << "< Файл було успішно видалено >" << endl;
+            }
+            else {
+                cout << "!!! Помилка видалення файлу !!!" << endl;
+            }
+
+            Render(FilesMenu);
+        }break;
+
+        default: {
+            system("cls");
+            cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(FilesMenu);
+        }
+
+        }
+    }
+
     void Render(int Variative) {
+        if (Variative == FilesMenu) {
+            vector<pair<string, string>> Paths = getCOIFiles();
+            if (!Paths.empty()) {
+                cout << "Список доступних файлів:" << endl;
+                cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
+
+                for (int i = 0; i < Paths.size(); i++) {
+                    cout << "| " << setw(4) << setprecision(4) << setfill(' ') << left << i << setw(112) << setprecision(112) << setfill(' ') << Paths[i].first.substr(0, 111) << "|" << endl;
+                }
+
+                cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
+                cout << "1 - Створити файл      2 - Обрати файл    3 - Видалити файл     0 - Вихід з програми" << endl;
+                cout << endl << " Оберіть команду: ";
+                AlreadyHaveFileSelector();
+            }
+            else {
+                cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
+                cout << "|                                                                                                                     |" << endl;
+                cout << "|                                                                                                                     |" << endl;
+                cout << "|                                               Створіть файл з даними!                                               |" << endl;
+                cout << "|                                                                                                                     |" << endl;
+                cout << "|                                                                                                                     |" << endl;
+                cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
+                cout << "1 - Створити файл      0 - Вихід з програми" << endl;
+                cout << endl << " Оберіть команду: ";
+                NewFileSelector();
+            }
+        }
         if (Variative == MainMenu) {
+            cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
@@ -900,7 +1063,7 @@ public:
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-            cout << "1 - Створити сеанс      2 - Перегляд сеансів та дії з ними      3 - Завантажити сеанси з файлу     0 - Вихід з програми" << endl;
+            cout << "1 - Створити сеанс      2 - Перегляд сеансів та дії з ними      3 - Завантажити сеанси з файлу     0 - Обзор файлів" << endl;
             cout << endl << " Оберіть команду: ";
             NewSessionSelector();
         }

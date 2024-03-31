@@ -8,11 +8,12 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
-
+#include <ctime>
 
 using namespace std;
 
 #define MainMenu 0 //Означає відображення головного меню
+
 #define TextChange 1 //Означає відображення текстового редактору без команд
 #define SimpleTextChange 2 //Означає відображення текстового редактору з командами
 #define InputText 3 //Означає відображення текстового редактору з командами вставки тексту
@@ -20,9 +21,12 @@ using namespace std;
 #define DeleteText 5 //Означає відображення текстового редактору з командами видалення тексту
 #define MoveText 6 //Означає відображення текстового редактору з командами переміщення тексту
 #define CopyText 7 //Означає відображення текстового редактору з командами копіювання тексту
+
 #define AllSessions 8 //Означає відображення всіх сесій
-#define Compare 9 //Означає порівняння з історії перед виконанням
+#define CompareHistory 9 //Означає порівняння з історії перед виконанням
 #define FilesMenu 10 //Означає порівняння з історії перед виконанням
+#define StartMenu 11 //Означає порівняння з історії перед виконанням
+#define CompareSessions 12 //Означає порівняння з історії перед виконанням
 
 //#define NameSaveFile "SessionSave.txt"
 
@@ -214,13 +218,19 @@ struct FunctorByHighest {
     }
 };
 
+union RewiewAndCompare
+{
+    int UndoRewiewNumber;
+    int CompareSessionIndex;
+};
+
 class Editor {
 private:
     vector<pair<Session*, Caretaker*>> AvailableSessions;
     Session* ActiveSession;
     Caretaker* History;
     bool AlreadyLoaded;
-    int UndoRewiewNumber;
+    RewiewAndCompare R_and_C;
     string NameSaveFile;
 
     bool ShowAvailableSessions() {
@@ -260,16 +270,16 @@ private:
     }
 public:
     Editor() {
-        Render(FilesMenu);
+        Render(StartMenu);
         ActiveSession = NULL;
         AlreadyLoaded = false;
-        UndoRewiewNumber = -1;
+        R_and_C.UndoRewiewNumber = -1;
     }
 
     void ResetProgram() {
         ActiveSession = NULL;
         AlreadyLoaded = false;
-        UndoRewiewNumber = -1;
+        R_and_C.UndoRewiewNumber = -1;
         AvailableSessions.clear();
     }
 
@@ -282,7 +292,7 @@ public:
     void SessionBackupFromSave() {
         fstream ReadStream(NameSaveFile, ios::in);
 
-        if (!ReadStream.is_open()) {
+        /*if (!ReadStream.is_open()) {
             system("cls");
             cout << " !!! Збережень немає !!!" << endl;
             Render(MainMenu);
@@ -292,7 +302,7 @@ public:
             system("cls");
             cout << " !!! Ви вже завантажували дані !!!" << endl;
             Render(MainMenu);
-        }
+        }*/
 
         string SaveLine;
 
@@ -335,7 +345,7 @@ public:
         ReadStream.close();
     }
 
-    void SessionsDelete() {
+    /*void SessionsDelete() {
         int SessionIndex;
 
         cout << "Введіть індекс сеанс для видалення: ";
@@ -361,6 +371,17 @@ public:
             system("cls");
             cout << " !!! Ви обрали неіснуючий індекс !!!" << endl;
             ShowAvailableSessionsForm();
+        }
+    }*/
+
+    void SessionsDelete(int FromIndex) {
+        for (int i = AvailableSessions.size() - 1; i > FromIndex; i--) {
+            delete AvailableSessions[i].first;
+            delete AvailableSessions[i].second;
+
+            AvailableSessions.erase(AvailableSessions.begin() + i);
+            system("cls");
+
         }
     }
 
@@ -392,33 +413,34 @@ public:
         switch (Choice) {
         case 0: {
             system("cls");
-            Render(MainMenu);
+            Render(TextChange);
         }break;
 
         case 1: {
-            SessionsDelete();
+            SetActiveSessionCompareForm();
+            Render(CompareSessions);
         }break;
 
-        case 2: {
-            SaveAllSessionsForm();
-        }break;
+        //case 2: {
+        //    SaveAllSessionsForm();
+        //}break;
 
-        case 3: {
-            SetActiveSessionForm();
-        }break;
+        //case 3: {
+        //    SetActiveSessionForm();
+        //}break;
 
-        case 4: {
-            SortSessions(SortByHighest);
-        }break;
+        //case 4: {
+        //    SortSessions(SortByHighest);
+        //}break;
 
-        case 5: {
-            SortSessions(SortByLowest);
-        }break;
+        //case 5: {
+        //    SortSessions(SortByLowest);
+        //}break;
 
         default: {
             system("cls");
             cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
-            Render(MainMenu);
+            Render(TextChange);
         }
         }
     }
@@ -426,11 +448,11 @@ public:
     void ShowAvailableSessionsForm() {
         if (!ShowAvailableSessions()) {
             cout << "!!! Немає доступних сесій !!!" << endl;
-            Render(MainMenu);
+            Render(TextChange);
             return;
         }
         else {
-            cout << "1 - Видалити сеанс     2 - Зберегти всі сеанси у файл     3 - Обрати сеанс     \n4 - Сортувати за ростом     5 - Сортувати за убуванням     \n0 - Вихід" << endl << endl;
+            cout << "1 - Відкатитись до минулого сеансу\n0 - Назад" << endl << endl;
             cout << "Оберіть команду: ";
             SessionSelector();
 
@@ -457,15 +479,34 @@ public:
         }
     }
 
+    void SetActiveSessionCompareForm() {
+        cout << "Введіть номер сеансу: ";
+        int SessionNumber;
+        cin >> SessionNumber;
+
+        if (SetActiveSession(SessionNumber)) {
+            system("cls");
+            R_and_C.CompareSessionIndex = SessionNumber;
+            Render(CompareSessions);
+        }
+
+        else {
+            system("cls");
+            cout << "!!! Сеанса під таким індексом не існує !!!" << endl;
+            ShowAvailableSessionsForm();
+            return;
+        }
+    }
+
     void CreateNewSession() {
 
-        string Name;
-        cout << "Введіть ім'я сеансу: ";
-        cin >> Name;
+        string Name = GetCurrentDateTime();
+        /*cout << "Введіть ім'я сеансу: ";
+        cin >> Name;*/
 
-        string Text;
-        cout << "Введіть початковий текст для сеансу (необов'язково): ";
-        cin >> Text;
+        string Text = "";
+        /*cout << "Введіть початковий текст для сеансу (необов'язково): ";
+        cin >> Text;*/
 
         system("cls");
 
@@ -475,7 +516,18 @@ public:
         AvailableSessions.push_back(make_pair(session, caretaker));
         SetActiveSession(AvailableSessions.size() - 1);
 
-        Render(TextChange);
+        
+    }
+
+    void CreateNewSession(string WithText, string WithName) {
+
+        system("cls");
+
+        Session* session = new Session(WithName, WithText);
+        Caretaker* caretaker = new Caretaker(session);
+
+        AvailableSessions.push_back(make_pair(session, caretaker));
+        SetActiveSession(AvailableSessions.size() - 1);
     }
 
     void NewSessionSelector() {
@@ -490,6 +542,7 @@ public:
         case 1: {
             system("cls");
             CreateNewSession();
+            Render(TextChange);
         }break;
 
         case 2: {
@@ -821,9 +874,16 @@ public:
 
         switch (Choice) {
         case 0: {
+            CreateNewSession(ActiveSession->GetTextLine(), GetCurrentDateTime());
+            SaveAllSessions();
             system("cls");
             ActiveSession = NULL;
-            Render(MainMenu);
+            Render(FilesMenu);
+        }break;
+
+        case -1: {
+            system("cls");
+            ShowAvailableSessionsForm();
         }break;
 
         case 1: {
@@ -880,8 +940,8 @@ public:
             cout << "Скільки подій ви бажаєте відмінити: ";
             cin >> Number;
             system("cls");
-            UndoRewiewNumber = Number;
-            Render(Compare);
+            R_and_C.UndoRewiewNumber = Number;
+            Render(CompareHistory);
             cout << endl << endl << "Ви підтверджуєте відміну (Так): ";
             string Answer;
             cin >> Answer;
@@ -905,11 +965,11 @@ public:
             system("cls");
             cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
             Render(TextChange);
-        }          
+        }
         }
     }
 
-    vector<pair<string,string>> getCOIFiles() {
+    vector<pair<string, string>> getCOIFiles() {
         vector<pair<string, string>> files;
         auto path = filesystem::current_path();
 
@@ -928,14 +988,16 @@ public:
         cin >> Choice;
         switch (Choice) {
         case 0: {
-            exit(1);
+            system("cls");
+            Render(StartMenu);
         }break;
-            
+
         case 1: {
             system("cls");
             CreateNewFile();
+            CreateNewSession();
             system("cls");
-            Render(MainMenu);
+            Render(TextChange);
         }break;
 
         default: {
@@ -980,14 +1042,16 @@ public:
         cin >> Choice;
         switch (Choice) {
         case 0: {
-            exit(1);
+            system("cls");
+            Render(StartMenu);
         }break;
 
         case 1: {
             system("cls");
             CreateNewFile();
+            CreateNewSession();
             system("cls");
-            Render(MainMenu);
+            Render(TextChange);
         }break;
 
         case 2: {
@@ -996,16 +1060,18 @@ public:
             cin >> Index;
             ChooseTheFile(Index);
             system("cls");
-            Render(MainMenu);
+            SessionBackupFromSave();
+            SetActiveSession(AvailableSessions.size() - 1);
+            Render(TextChange);
         }break;
 
         case 3: {
             cout << " Оберіть індекс файлу: ";
             int Index;
             cin >> Index;
-            
+
             system("cls");
-            
+
             if (DeleteTheFile(Index)) {
                 cout << "< Файл було успішно видалено >" << endl;
             }
@@ -1025,8 +1091,74 @@ public:
         }
     }
 
+    void StartMenuSelector(){
+        int Choice;
+        cin >> Choice;
+        switch (Choice) {
+        case 0: {
+            exit(1);
+        }break;
+
+        case 1: {
+            system("cls");
+            Render(FilesMenu);
+        }break;
+
+
+        default: {
+            system("cls");
+            cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
+            Render(StartMenu);
+        }
+        }
+    }
+
+    string GetCurrentDateTime() {
+        auto t = time(nullptr);
+        tm tm;
+        localtime_s(&tm, &t);
+
+        ostringstream oss;
+        oss << put_time(&tm, "%Y-%m-%d %H:%M");
+        auto str = oss.str();
+
+        return str;
+    }
+
+    void CompareSessionSelector() {
+        int Choice;
+        cin >> Choice;
+        switch (Choice) {
+            case 0: {
+                system("cls");
+                SetActiveSession(AvailableSessions.size() - 1);
+                Render(TextChange);
+            }break;
+
+            case 1: {
+                system("cls");
+                SessionsDelete(R_and_C.CompareSessionIndex);
+                SaveAllSessions();
+                SetActiveSession(AvailableSessions.size() - 1);
+                Render(TextChange);
+            }break;
+
+
+            default: {
+                system("cls");
+                cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
+                Render(StartMenu);
+            }
+        }
+    }
+
     void Render(int Variative) {
-        if (Variative == FilesMenu) {
+        if (Variative == StartMenu) {
+            cout << "1 - Переглянути файли      0 - Вихід з програми" << endl;
+            cout << "оберіть команду: ";
+            StartMenuSelector();
+        }
+        else if (Variative == FilesMenu) {
             vector<pair<string, string>> Paths = getCOIFiles();
             if (!Paths.empty()) {
                 cout << "Список доступних файлів:" << endl;
@@ -1037,7 +1169,7 @@ public:
                 }
 
                 cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-                cout << "1 - Створити файл      2 - Обрати файл    3 - Видалити файл     0 - Вихід з програми" << endl;
+                cout << "1 - Створити файл      2 - Обрати файл    3 - Видалити файл     0 - Перейти до початку" << endl;
                 cout << endl << " Оберіть команду: ";
                 AlreadyHaveFileSelector();
             }
@@ -1049,13 +1181,13 @@ public:
                 cout << "|                                                                                                                     |" << endl;
                 cout << "|                                                                                                                     |" << endl;
                 cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-                cout << "1 - Створити файл      0 - Вихід з програми" << endl;
+                cout << "1 - Створити файл      0 - Перейти до початку" << endl;
                 cout << endl << " Оберіть команду: ";
                 NewFileSelector();
             }
         }
-        if (Variative == MainMenu) {
-            cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
+        else if (Variative == MainMenu) {
+            /*cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
@@ -1065,7 +1197,7 @@ public:
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
             cout << "1 - Створити сеанс      2 - Перегляд сеансів та дії з ними      3 - Завантажити сеанси з файлу     0 - Обзор файлів" << endl;
             cout << endl << " Оберіть команду: ";
-            NewSessionSelector();
+            NewSessionSelector();*/
         }
 
         else if (Variative >= TextChange && Variative <= CopyText) {
@@ -1075,7 +1207,8 @@ public:
             int CountCoef = TempMemento.size() > 5 ? TempMemento.size() - 5 : 0;
 
 
-            cout << "[Ім'я сесії: " << ActiveSession->GetName() << "]" << endl;
+            /*cout << "[Ім'я сесії: " << ActiveSession->GetName() << "]" << endl;*/
+            cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
             cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 5 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 5 ? (*(TempMemento.begin() + 4 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
             cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 4 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 4 ? (*(TempMemento.begin() + 3 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
@@ -1085,7 +1218,7 @@ public:
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
             switch (Variative) {
             case TextChange: {
-                cout << "1 - Вставити      2 - Вирізати      3 - Видалити     4 - Перемістити     5 - Скопіювати     6 - Відмінити     \n0 - Вихід" << endl;
+                cout << "1 - Вставити      2 - Вирізати      3 - Видалити     4 - Перемістити     5 - Скопіювати     6 - Відмінити     \n-1 - Переглянути історію сеансів     0 - Вихід" << endl;
                 cout << endl << " Оберіть команду: ";
                 TextChangeSelector();
             }break;
@@ -1130,7 +1263,7 @@ public:
 
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
         }
-        else if (Variative == Compare) {
+        else if (Variative == CompareHistory) {
             
             cout << "Поточний стан:" << endl;
             cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
@@ -1147,10 +1280,30 @@ public:
             cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
-            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << History->GetUndoTextLine(UndoRewiewNumber).substr(0, 99) << "                 |" << endl;
+            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << History->GetUndoTextLine(R_and_C.UndoRewiewNumber).substr(0, 99) << "                 |" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << "|                                                                                                                     |" << endl;
             cout << " ----------------------------------------------------------------------------------------------------------------------" << endl;
+        }
+        else if (Variative == CompareSessions) {
+            vector<Memento*> TempMemento = History->GetActiveSessionMemento();
+
+            int CountCoef = TempMemento.size() > 5 ? TempMemento.size() - 5 : 0;
+
+
+            cout << "[Перегляд сесії: " << ActiveSession->GetName() << "]" << endl;
+            cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
+            cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 5 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 5 ? (*(TempMemento.begin() + 4 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 4 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 4 ? (*(TempMemento.begin() + 3 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|" << setw(100) << setprecision(100) << setfill(' ') << left << ActiveSession->GetTextLine().substr(0, 99) << "|" << setw(3) << setprecision(3) << setfill(' ') << left << 3 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 3 ? (*(TempMemento.begin() + 2 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 2 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 2 ? (*(TempMemento.begin() + 1 + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << "|                                                                                                    |" << setw(3) << setprecision(3) << setfill(' ') << left << 1 + CountCoef << setw(14) << setprecision(14) << setfill(' ') << left << (TempMemento.size() >= 1 ? (*(TempMemento.begin() + CountCoef))->GetSessionTauntEvent() : "Запису немає") << "|" << endl;
+            cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
+            
+            cout << "1 - Виконати відкатування      0 - Вихід" << endl;
+            cout << endl << " Оберіть команду: ";
+            CompareSessionSelector();
         }
     }
 };

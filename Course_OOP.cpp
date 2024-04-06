@@ -12,8 +12,6 @@
 
 using namespace std;
 
-#define MainMenu 0 //Означає відображення головного меню
-
 #define TextChange 1 //Означає відображення текстового редактору без команд
 #define SimpleTextChange 2 //Означає відображення текстового редактору з командами
 #define InputText 3 //Означає відображення текстового редактору з командами вставки тексту
@@ -43,7 +41,7 @@ public:
     virtual string GetSessionTauntEvent() const = 0;
 };
 
-class ConcreteMemento : public Memento {
+class Snapshot : public Memento {
 private:
     string SessionName;
     string SessionTextLine;
@@ -51,7 +49,7 @@ private:
 
 
 public:
-    ConcreteMemento(string Name, string TextLine, string TauntEvent) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent) {
+    Snapshot(string Name, string TextLine, string TauntEvent) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent) {
     }
 
     string GetSessionName() const override {
@@ -89,7 +87,7 @@ public:
     }
 
     Memento* Save() {
-        return new ConcreteMemento(SessionName, TextLine, LastTauntEvent);
+        return new Snapshot(SessionName, TextLine, LastTauntEvent);
     }
 
     void Restore(Memento* Backup) {
@@ -161,7 +159,7 @@ public:
         }
     }
 
-    void MementosBackupFromFile(ConcreteMemento* memento) {
+    void MementosBackupFromFile(Snapshot* memento) {
         mementos_.push_back(memento);
     }
 
@@ -328,7 +326,7 @@ public:
                 getline(ParseMementoData, TempConcreteMemento.TextLine, '+');
                 getline(ParseMementoData, TempConcreteMemento.TauntEvent, '~');
 
-                TempCaretaker->MementosBackupFromFile(new ConcreteMemento(TempConcreteMemento.SessionName, TempConcreteMemento.TextLine, TempConcreteMemento.TauntEvent));
+                TempCaretaker->MementosBackupFromFile(new Snapshot(TempConcreteMemento.SessionName, TempConcreteMemento.TextLine, TempConcreteMemento.TauntEvent));
             }
 
             AvailableSessions.push_back(make_pair(TempSessionData, TempCaretaker));
@@ -340,7 +338,7 @@ public:
 
         AlreadyLoaded = true;
 
-        Render(MainMenu);
+       /* Render(MainMenu);*/
 
         ReadStream.close();
     }
@@ -530,7 +528,7 @@ public:
         SetActiveSession(AvailableSessions.size() - 1);
     }
 
-    void NewSessionSelector() {
+    /*void NewSessionSelector() {
         int Choice;
         cin >> Choice;
         switch (Choice) {
@@ -560,7 +558,7 @@ public:
             Render(MainMenu);
         }
         }
-    }
+    }*/
 
     void InputToText() {
         int Choice;
@@ -1185,19 +1183,6 @@ public:
                 cout << endl << " Оберіть команду: ";
                 NewFileSelector();
             }
-        }
-        else if (Variative == MainMenu) {
-            /*cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
-            cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-            cout << "|                                                                                                                     |" << endl;
-            cout << "|                                                                                                                     |" << endl;
-            cout << "|                                             Створіть або оберіть сесію!                                             |" << endl;
-            cout << "|                                                                                                                     |" << endl;
-            cout << "|                                                                                                                     |" << endl;
-            cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
-            cout << "1 - Створити сеанс      2 - Перегляд сеансів та дії з ними      3 - Завантажити сеанси з файлу     0 - Обзор файлів" << endl;
-            cout << endl << " Оберіть команду: ";
-            NewSessionSelector();*/
         }
 
         else if (Variative >= TextChange && Variative <= CopyText) {

@@ -1275,7 +1275,6 @@ public:
 
             int CountCoef = TempMemento.size() > 5 ? TempMemento.size() - 5 : 0;
 
-
             cout << "[Перегляд сесії: " << ActiveSession->GetName() << "]" << endl;
             cout << "Ім'я файлу: " << GetNameSaveFile() << endl;
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;

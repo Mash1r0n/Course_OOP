@@ -516,7 +516,6 @@ public:
 
         
     }
-
     void CreateNewSession(string WithText, string WithName) {
 
         system("cls");

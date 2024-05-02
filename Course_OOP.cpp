@@ -209,7 +209,7 @@ void Caretaker::SaveHistory(string NameSaveFile) {
 }
 
 string Caretaker::GetUndoTextLine(int UndoNum) {
-    return mementos_[UndoNum > mementos_.size() - 1 ? mementos_.size() - 1 : mementos_.size() - UndoNum]->GetSessionTextLine();
+    return mementos_[UndoNum > mementos_.size() - 1 ? mementos_.size() - 1 : UndoNum]->GetSessionTextLine();
 }
 
 Caretaker::Caretaker(Session* originator) : originator_(originator) {
@@ -723,11 +723,14 @@ public:
 
         костиль15:
 
-            if (!(cin >> StartPos >> Count)) {
+            if (!(cin >> StartPos >> Count) || StartPos > ActiveSession->GetTextLine().size() || StartPos < 0 || Count < 0) {
                 cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль15;
+            }
+            else if (Count > ActiveSession->GetTextLine().size() - StartPos) {
+                Count = ActiveSession->GetTextLine().size() - StartPos;
             }
 
             string SubText = ActiveSession->GetTextLine().substr(StartPos, Count);
@@ -744,11 +747,15 @@ public:
 
         костиль16:
 
-            if (!(cin >> Pos)) {
+            if (!(cin >> Pos) || Pos < 0) {
                 cout << "Неправильно введено номер символу, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль16;
+            }
+
+            else if (!(Pos <= ActiveSession->GetTextLine().size())) {
+                Pos = ActiveSession->GetTextLine().size();
             }
 
             ActiveSession->InputToText(Pos, SubText);
@@ -790,11 +797,14 @@ public:
 
         костиль18:
 
-            if (!(cin >> Pos >> Count)) {
+            if (!(cin >> Pos >> Count) || Pos > ActiveSession->GetTextLine().size() || Pos < 0 || Count < 0) {
                 cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль18;
+            }
+            else if (Count > ActiveSession->GetTextLine().size() - Pos) {
+                Count = ActiveSession->GetTextLine().size() - Pos;
             }
 
             string newText = ActiveSession->GetTextLine().substr(Pos, Count);
@@ -926,7 +936,8 @@ public:
             }
 
             system("cls");
-            R_and_C.UndoRewiewNumber = Number;
+            R_and_C.UndoRewiewNumber = History->GetActiveSessionMemento().size() - Number;
+            
             Render(CompareHistory);
             cout << endl << endl << "Ви підтверджуєте відміну (Так): ";
             string Answer;
@@ -1188,8 +1199,9 @@ public:
 
             default: {
                 system("cls");
+                SetActiveSession(AvailableSessions.size() - 1);
                 cout << right << " !!! Ви обрали неіснуючу дію !!!" << endl;
-                Render(StartMenu);
+                Render(TextChange);
             }
         }
     }

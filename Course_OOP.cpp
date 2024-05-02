@@ -513,15 +513,19 @@ public:
             }
 
             int Pos;
-            cout << " Введіть номер символу перед яким треба поставити текст: ";
+            cout << "Введіть номер символу перед яким треба поставити текст: ";
 
         костиль7:
 
-            if (!(cin >> Pos)) {
+            if (!(cin >> Pos) && Pos < 0) {
                 cout << "Неправильно введена позиція, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль7;
+            }
+
+            else if (!(Pos <= ActiveSession->GetTextLine().size())) {
+                Pos = ActiveSession->GetTextLine().size();
             }
 
             ActiveSession->SetTauntEvent("Введення");
@@ -536,19 +540,23 @@ public:
 
         case 2: {
             string Text;
-            cout << " Введіть текст, який треба вставити: ";
+            cout << "Введіть текст, який треба вставити: ";
             cin >> Text;
             Text = Text.substr(0, 99);
             int Pos;
-            cout << " Введіть номер символу перед яким треба поставити текст: ";
+            cout << "Введіть номер символу перед яким треба поставити текст: ";
 
         костиль8:
 
-            if (!(cin >> Pos)) {
+            if (!(cin >> Pos) || Pos < 0) {
                 cout << "Неправильно введена позиція, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль8;
+            }
+
+            else if (!(Pos <= ActiveSession->GetTextLine().size())) {
+                Pos = ActiveSession->GetTextLine().size();
             }
 
             ActiveSession->SetTauntEvent("Введення");
@@ -594,11 +602,14 @@ public:
 
         костиль10:
 
-            if (!(cin >> Pos >> Count)) {
+            if (!(cin >> Pos >> Count) || Pos > ActiveSession->GetTextLine().size() || Pos < 0 || Count < 0) {
                 cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль10;
+            }
+            else if (Count > ActiveSession->GetTextLine().size() - Pos) {
+                Count = ActiveSession->GetTextLine().size() - Pos;
             }
 
             string newText = ActiveSession->GetTextLine().substr(Pos, Count);
@@ -661,11 +672,14 @@ public:
 
         костиль12:
 
-            if (!(cin >> StartPos >> Count)) {
+            if (!(cin >> StartPos >> Count) || StartPos > ActiveSession->GetTextLine().size() || StartPos < 0 || Count < 0) {
                 cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль12;
+            }
+            else if (Count > ActiveSession->GetTextLine().size() - StartPos) {
+                Count = ActiveSession->GetTextLine().size() - StartPos;
             }
 
             ActiveSession->SetTauntEvent("Видалення");
@@ -726,7 +740,7 @@ public:
             system("cls");
             Render(SimpleTextChange);
 
-            cout << " Введіть номер символу перед яким треба поставити текст: ";
+            cout << "Введіть номер символу перед яким треба поставити текст: ";
 
         костиль16:
 
@@ -894,6 +908,7 @@ public:
         switch (Choice) {
         case 1: {
             History->Undo();
+            system("cls");
             Render(TextChange);
         }break;
 
@@ -1046,17 +1061,18 @@ public:
         }break;
 
         case 2: {
-            cout << " Оберіть індекс файлу: ";
+            cout << "Оберіть індекс файлу: ";
             int Index;
 
         костиль26:
 
-            if (!(cin >> Index)) {
+            if (!(cin >> Index) || (Index >= getCOIFiles().size())) {
                 cout << "Неправильно введено індекс, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль26;
             }
+            
 
             ChooseTheFile(Index);
             system("cls");
@@ -1066,12 +1082,12 @@ public:
         }break;
 
         case 3: {
-            cout << " Оберіть індекс файлу: ";
+            cout << "Оберіть індекс файлу: ";
             int Index;
 
         костиль27:
 
-            if (!(cin >> Index)) {
+            if (!(cin >> Index) || (Index >= getCOIFiles().size())) {
                 cout << "Неправильно введено індекс, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -1232,36 +1248,36 @@ public:
             switch (Variative) {
             case TextChange: {
                 cout << "1 - Вставити      2 - Вирізати      3 - Видалити     4 - Перемістити     5 - Скопіювати     6 - Відмінити     \n-1 - Переглянути історію сеансів     0 - Вихід" << endl;
-                cout << endl << " Оберіть команду: ";
+                cout << endl << "Оберіть команду: ";
                 TextChangeSelector();
             }break;
 
             case InputText: {
                 cout << "1 - Вставити останні символи з буферу      2 - Ввести символи для вставки      0 - Вихід" << endl;
-                cout << endl << " Оберіть команду: ";
+                cout << endl << "Оберіть команду: ";
                 InputToText();
             };
             case CutText: {
                 cout << "1 - Ввести номер початкового символу та кількість символів після початку для вирізки      0 - Вихід" << endl;
-                cout << endl << " Оберіть команду: ";
+                cout << endl << "Оберіть команду: ";
                 CutFromText();
             }break;
 
             case DeleteText: {
                 cout << "1 - Ввести номер початкового символу та кількість символів після початку для видалення      0 - Вихід" << endl;
-                cout << endl << " Оберіть команду: ";
+                cout << endl << "Оберіть команду: ";
                 DeleteFromText();
             }break;
 
             case MoveText: {
                 cout << "1 - Перемістити текст за номером початку, кількістю символів та індексу місця вставки      0 - Вихід" << endl;
-                cout << endl << " Оберіть команду: ";
+                cout << endl << "Оберіть команду: ";
                 MoveInText();
             }break;
 
             case CopyText: {
                 cout << "1 - Скопіювати текст за номером початку і кількістю символів після нього      0 - Вихід" << endl;
-                cout << endl << " Оберіть команду: ";
+                cout << endl << "Оберіть команду: ";
                 CopyInText();
             }break;
             }
@@ -1315,7 +1331,7 @@ public:
             cout << " ----------------------------------------------------------------------------------------------------" << "------------------" << endl;
             
             cout << "1 - Виконати відкатування      0 - Вихід" << endl;
-            cout << endl << " Оберіть команду: ";
+            cout << endl << "Оберіть команду: ";
             CompareSessionSelector();
         }
     }

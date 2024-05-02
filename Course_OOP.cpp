@@ -6,9 +6,12 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <ctime>
+#include <limits>
+#ifdef max
+#undef max
+#endif
 
 using namespace std;
 
@@ -49,8 +52,9 @@ private:
 
 
 public:
-    Snapshot(string Name, string TextLine, string TauntEvent) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent) {
-    }
+    Snapshot(string, string, string);
+
+    
 
     string GetSessionName() const override {
         return SessionName;
@@ -65,57 +69,74 @@ public:
     }
 };
 
+Snapshot::Snapshot(string Name, string TextLine, string TauntEvent) : SessionName(Name), SessionTextLine(TextLine), SessionTauntEvent(TauntEvent) {
+}
+
 class Session {
 private:
     string SessionName;
     string TextLine;
     string LastTauntEvent;
-    bool Saved; //С этим ещё предстоит попариться
 public:
     string GetName() {
         return SessionName;
     }
 
-    Session(string SessionName, string TextLine = "", bool saved = false, string TauntEvent = "") : SessionName(SessionName), TextLine(TextLine), LastTauntEvent(TauntEvent), Saved(saved) {};
+    Session(string, string, string);
+
+    
 
     string GetTextLine() {
         return TextLine;
-    }
-
-    bool GetSaved() {
-        return Saved;
     }
 
     Memento* Save() {
         return new Snapshot(SessionName, TextLine, LastTauntEvent);
     }
 
-    void Restore(Memento* Backup) {
-        SessionName = Backup->GetSessionName();
-        TextLine = Backup->GetSessionTextLine();
-        LastTauntEvent = Backup->GetSessionTauntEvent();
-    }
+    void Restore(Memento*);
 
-    void SetTauntEvent(string NameOfTaunt) {
-        LastTauntEvent = NameOfTaunt;
-    }
+    void SetTauntEvent(string);
 
-    void InputToText(int Position, string Text) {
-        TextLine.insert(Position, Text);
-    }
+    void InputToText(int, string);
 
-    void DeleteFromText(int StartPos, int EndPos) {
-        TextLine.erase(StartPos, EndPos);
-    }
+    
 
-    void SaveFile(string NameSaveFile, bool Mode) {// true - перезапис, false - без перезапису
-        Saved = true;
-        fstream SaveStream(NameSaveFile, Mode ? ios::out : ios::app);
-        SaveStream << SessionName << "+" << TextLine;
-        SaveStream.close();
-    }
+    void DeleteFromText(int, int);
+
+    
+
+    void SaveFile(string, bool);
+
+    
 
 };
+
+void Session::SetTauntEvent(string NameOfTaunt) {
+    LastTauntEvent = NameOfTaunt;
+}
+
+Session::Session(string SessionName, string TextLine = "", string TauntEvent = "") : SessionName(SessionName), TextLine(TextLine), LastTauntEvent(TauntEvent) {};
+
+void Session::SaveFile(string NameSaveFile, bool Mode) {
+    fstream SaveStream(NameSaveFile, Mode ? ios::out : ios::app);
+    SaveStream << SessionName << "+" << TextLine;
+    SaveStream.close();
+}
+
+void Session::DeleteFromText(int StartPos, int EndPos) {
+    TextLine.erase(StartPos, EndPos);
+}
+
+void Session::InputToText(int Position, string Text) {
+    TextLine.insert(Position, Text);
+}
+
+void Session::Restore(Memento* Backup) {
+    SessionName = Backup->GetSessionName();
+    TextLine = Backup->GetSessionTextLine();
+    LastTauntEvent = Backup->GetSessionTauntEvent();
+}
 
 class Caretaker {
 private:
@@ -124,21 +145,16 @@ private:
     Session* originator_;
 
 public:
-    Caretaker(Session* originator) : originator_(originator) {
-    }
-
-    Caretaker(Caretaker& copy) {
-        mementos_ = copy.mementos_;
-        originator_ = copy.originator_;
-    }
+    Caretaker(Session*);
+    Caretaker(Caretaker&);
 
     ~Caretaker() {
         for (auto memento : mementos_) delete memento;
     }
 
-    string GetUndoTextLine(int UndoNum) {
-        return mementos_[UndoNum > mementos_.size()-1 ? mementos_.size()-1 : mementos_.size() - UndoNum]->GetSessionTextLine();
-    }
+    string GetUndoTextLine(int);
+
+    
 
     void Backup() {
         this->mementos_.push_back(this->originator_->Save());
@@ -159,61 +175,60 @@ public:
         }
     }
 
-    void MementosBackupFromFile(Snapshot* memento) {
-        mementos_.push_back(memento);
-    }
+    void MementosBackupFromFile(Snapshot*);
 
     vector<Memento*> GetActiveSessionMemento() {
         return mementos_;
     }
 
-    void SaveHistory(string NameSaveFile) {
-        fstream SaveStream(NameSaveFile, ios::app);
+    void SaveHistory(string);
 
-        if (mementos_.empty()) {
-            SaveStream << endl;
-            SaveStream.close();
+};
 
-            return;
-        }
+void Caretaker::MementosBackupFromFile(Snapshot* memento) {
+    mementos_.push_back(memento);
+}
 
-        for (Memento* TempMem : mementos_) {
-            SaveStream << "~" << TempMem->GetSessionName() << "+" << TempMem->GetSessionTextLine() << "+" << TempMem->GetSessionTauntEvent();
-        }
+void Caretaker::SaveHistory(string NameSaveFile) {
+    fstream SaveStream(NameSaveFile, ios::app);
 
-        SaveStream << "~" << endl; //Разобраться с тем, что сделать, если вдруг у меня нечего сохранять, тогда endl не сработает и всё слепится в 1 строку
-
+    if (mementos_.empty()) {
+        SaveStream << endl;
         SaveStream.close();
+
+        return;
     }
 
-    /*void ShowHistory() const {
-        for (Memento* memento : this->mementos_) {
-            cout << memento->GetSessionName() << "\n";
-        }
-    }*/
-};
+    for (Memento* TempMem : mementos_) {
+        SaveStream << "~" << TempMem->GetSessionName() << "+" << TempMem->GetSessionTextLine() << "+" << TempMem->GetSessionTauntEvent();
+    }
+
+    SaveStream << "~" << endl; //Разобраться с тем, что сделать, если вдруг у меня нечего сохранять, тогда endl не сработает и всё слепится в 1 строку
+
+    SaveStream.close();
+}
+
+string Caretaker::GetUndoTextLine(int UndoNum) {
+    return mementos_[UndoNum > mementos_.size() - 1 ? mementos_.size() - 1 : mementos_.size() - UndoNum]->GetSessionTextLine();
+}
+
+Caretaker::Caretaker(Session* originator) : originator_(originator) {
+}
+
+Caretaker::Caretaker(Caretaker& copy) {
+    mementos_ = copy.mementos_;
+    originator_ = copy.originator_;
+}
 
 struct SavePattern {
     string SessionName;
     string TextLine;
 };
 
-struct SavePatterForMemento {
+struct SavePatternForMemento {
     string SessionName;
     string TextLine;
     string TauntEvent;
-};
-
-struct FunctorByLowest {
-    bool operator()(pair<Session*, Caretaker*>& A, pair<Session*, Caretaker*>& B) {
-        return B.first->GetName() > A.first->GetName();
-    }
-};
-
-struct FunctorByHighest {
-    bool operator()(pair<Session*, Caretaker*>& A, pair<Session*, Caretaker*>& B) {
-        return A.first->GetName() > B.first->GetName();
-    }
 };
 
 union RewiewAndCompare
@@ -227,7 +242,6 @@ private:
     vector<pair<Session*, Caretaker*>> AvailableSessions;
     Session* ActiveSession;
     Caretaker* History;
-    bool AlreadyLoaded;
     RewiewAndCompare R_and_C;
     string NameSaveFile;
 
@@ -267,16 +281,16 @@ private:
         }
     }
 public:
+    
+
     Editor() {
         Render(StartMenu);
         ActiveSession = NULL;
-        AlreadyLoaded = false;
         R_and_C.UndoRewiewNumber = -1;
     }
 
     void ResetProgram() {
         ActiveSession = NULL;
-        AlreadyLoaded = false;
         R_and_C.UndoRewiewNumber = -1;
         AvailableSessions.clear();
     }
@@ -290,18 +304,6 @@ public:
     void SessionBackupFromSave() {
         fstream ReadStream(NameSaveFile, ios::in);
 
-        /*if (!ReadStream.is_open()) {
-            system("cls");
-            cout << " !!! Збережень немає !!!" << endl;
-            Render(MainMenu);
-        }
-
-        else if (AlreadyLoaded) {
-            system("cls");
-            cout << " !!! Ви вже завантажували дані !!!" << endl;
-            Render(MainMenu);
-        }*/
-
         string SaveLine;
 
         while (getline(ReadStream, SaveLine)) {
@@ -311,7 +313,7 @@ public:
             getline(AnotherStream, Example.SessionName, '+');
             getline(AnotherStream, Example.TextLine, '~');
 
-            Session* TempSessionData = new Session(Example.SessionName, Example.TextLine, true);
+            Session* TempSessionData = new Session(Example.SessionName, Example.TextLine);
 
             string MementoData;
 
@@ -320,7 +322,7 @@ public:
             while (getline(AnotherStream, MementoData, '~')) {
                 istringstream ParseMementoData(MementoData);
 
-                SavePatterForMemento TempConcreteMemento;
+                SavePatternForMemento TempConcreteMemento;
 
                 getline(ParseMementoData, TempConcreteMemento.SessionName, '+');
                 getline(ParseMementoData, TempConcreteMemento.TextLine, '+');
@@ -334,43 +336,10 @@ public:
         }
 
         system("cls");
-        cout << " < Сеанси було завантажено >" << endl;
-
-        AlreadyLoaded = true;
-
-       /* Render(MainMenu);*/
+        cout << " < Сеанс було завантажено >" << endl;
 
         ReadStream.close();
     }
-
-    /*void SessionsDelete() {
-        int SessionIndex;
-
-        cout << "Введіть індекс сеанс для видалення: ";
-        cin >> SessionIndex;
-
-        if (SessionIndex <= AvailableSessions.size() - 1 && !(SessionIndex < 0)) {
-            delete AvailableSessions[SessionIndex].first;
-            delete AvailableSessions[SessionIndex].second;
-
-            AvailableSessions.erase(AvailableSessions.begin() + SessionIndex);
-            system("cls");
-
-            if (AvailableSessions.empty()) {
-                Render(MainMenu);
-            }
-            else {
-                SaveAllSessions();
-                ShowAvailableSessionsForm();
-            }
-        }
-
-        else {
-            system("cls");
-            cout << " !!! Ви обрали неіснуючий індекс !!!" << endl;
-            ShowAvailableSessionsForm();
-        }
-    }*/
 
     void SessionsDelete(int FromIndex) {
         for (int i = AvailableSessions.size() - 1; i > FromIndex; i--) {
@@ -390,23 +359,17 @@ public:
         ShowAvailableSessionsForm();
     }
 
-    void SortSessions(int SortIndex) {
-        system("cls");
-
-        if (SortIndex == SortByLowest) {
-            sort(AvailableSessions.begin(), AvailableSessions.end(), FunctorByLowest());
-        }
-        else if (SortIndex == SortByHighest) {
-            sort(AvailableSessions.begin(), AvailableSessions.end(), FunctorByHighest());
-        }
-
-        cout << " < Дані було відсортовано! >" << endl;
-        ShowAvailableSessionsForm();
-    }
-
     void SessionSelector() {
         int Choice;
-        cin >> Choice;
+        
+        костиль1:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль1;
+        }
 
         switch (Choice) {
         case 0: {
@@ -418,22 +381,6 @@ public:
             SetActiveSessionCompareForm();
             Render(CompareSessions);
         }break;
-
-        //case 2: {
-        //    SaveAllSessionsForm();
-        //}break;
-
-        //case 3: {
-        //    SetActiveSessionForm();
-        //}break;
-
-        //case 4: {
-        //    SortSessions(SortByHighest);
-        //}break;
-
-        //case 5: {
-        //    SortSessions(SortByLowest);
-        //}break;
 
         default: {
             system("cls");
@@ -454,15 +401,21 @@ public:
             cout << "Оберіть команду: ";
             SessionSelector();
 
-            /*system("cls");
-            Render(MainMenu);*/
         }
     }
 
     void SetActiveSessionForm() {
         cout << "Введіть номер сеансу: ";
         int SessionNumber;
-        cin >> SessionNumber;
+
+        костиль3:
+
+        if (!(cin >> SessionNumber)) {
+            cout << "Неправильно введено номер сеансу, введіть правильно: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль3;
+        }
 
         if (SetActiveSession(SessionNumber)) {
             system("cls");
@@ -480,7 +433,15 @@ public:
     void SetActiveSessionCompareForm() {
         cout << "Введіть номер сеансу: ";
         int SessionNumber;
-        cin >> SessionNumber;
+
+    костиль5:
+
+        if (!(cin >> SessionNumber)) {
+            cout << "Неправильно введено номер сеансу, введіть правильно: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль5;
+        }
 
         if (SetActiveSession(SessionNumber)) {
             system("cls");
@@ -499,12 +460,8 @@ public:
     void CreateNewSession() {
 
         string Name = GetCurrentDateTime();
-        /*cout << "Введіть ім'я сеансу: ";
-        cin >> Name;*/
 
         string Text = "";
-        /*cout << "Введіть початковий текст для сеансу (необов'язково): ";
-        cin >> Text;*/
 
         system("cls");
 
@@ -513,8 +470,6 @@ public:
 
         AvailableSessions.push_back(make_pair(session, caretaker));
         SetActiveSession(AvailableSessions.size() - 1);
-
-        
     }
     void CreateNewSession(string WithText, string WithName) {
 
@@ -527,41 +482,17 @@ public:
         SetActiveSession(AvailableSessions.size() - 1);
     }
 
-    /*void NewSessionSelector() {
-        int Choice;
-        cin >> Choice;
-        switch (Choice) {
-        case 0: {
-            system("cls");
-            Render(FilesMenu);
-        }break;
-
-        case 1: {
-            system("cls");
-            CreateNewSession();
-            Render(TextChange);
-        }break;
-
-        case 2: {
-            system("cls");
-            ShowAvailableSessionsForm();
-        }break;
-
-        case 3: {
-            SessionBackupFromSave();
-        }break;
-
-        default: {
-            system("cls");
-            cout << " !!! Ви обрали неіснуючу дію !!!" << endl;
-            Render(MainMenu);
-        }
-        }
-    }*/
-
     void InputToText() {
         int Choice;
-        cin >> Choice;
+
+    костиль6:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль6;
+        }
 
         switch (Choice) {
         case 0: {
@@ -570,31 +501,28 @@ public:
         }break;
 
         case 1: {
-            if (!OpenClipboard(nullptr)) {
-                system("cls");
-                cout << " !!! Не вдалось відкрити буфер обміну !!!" << endl;
-                Render(TextChange);
-                return;
-            }
-
-            HANDLE hData = GetClipboardData(CF_TEXT);
-            if (hData == nullptr) {
-                system("cls");
-                cout << " !!! Не вдалось отримати дані з буферу обміну !!!" << endl;
+            string clipboardText;
+            if (OpenClipboard(NULL)) {
+                HANDLE hData = GetClipboardData(CF_TEXT);
+                char* pszData = static_cast<char*>(GlobalLock(hData));
+                if (pszData != NULL) {
+                    clipboardText = pszData;
+                }
+                GlobalUnlock(hData);
                 CloseClipboard();
-                Render(TextChange);
-                return;
             }
-
-            char* buffer = static_cast<char*>(GlobalLock(hData));
-            string clipboardText(buffer);
-            GlobalUnlock(hData);
-
-            CloseClipboard();
 
             int Pos;
             cout << " Введіть номер символу перед яким треба поставити текст: ";
-            cin >> Pos;
+
+        костиль7:
+
+            if (!(cin >> Pos)) {
+                cout << "Неправильно введена позиція, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль7;
+            }
 
             ActiveSession->SetTauntEvent("Введення");
             History->Backup();
@@ -610,9 +538,18 @@ public:
             string Text;
             cout << " Введіть текст, який треба вставити: ";
             cin >> Text;
+            Text = Text.substr(0, 99);
             int Pos;
             cout << " Введіть номер символу перед яким треба поставити текст: ";
-            cin >> Pos;
+
+        костиль8:
+
+            if (!(cin >> Pos)) {
+                cout << "Неправильно введена позиція, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль8;
+            }
 
             ActiveSession->SetTauntEvent("Введення");
             History->Backup();
@@ -635,7 +572,15 @@ public:
 
     void CutFromText() {
         int Choice;
-        cin >> Choice;
+
+    костиль9:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль9;
+        }
 
         switch (Choice) {
         case 0: {
@@ -646,54 +591,30 @@ public:
         case 1: {
             int Pos, Count;
             cout << "Введіть через пробіл номер символу з якого почати вирізання та кількість символів після нього: ";
-            cin >> Pos >> Count;
+
+        костиль10:
+
+            if (!(cin >> Pos >> Count)) {
+                cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль10;
+            }
+
             string newText = ActiveSession->GetTextLine().substr(Pos, Count);
 
-            if (!OpenClipboard(nullptr)) {
-                system("cls");
-                cout << " !!! Не вдалось відкрити буфер обміну !!!" << endl;
-                Render(TextChange);
-                return;
-            }
-
-            HANDLE hClipboardData = GetClipboardData(CF_TEXT);
-            if (hClipboardData == nullptr) {
-                system("cls");
-                cout << " !!! Не вдалось отримати дані з буферу обміну !!!" << endl;
+            OpenClipboard(0);
+            EmptyClipboard();
+            HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, newText.size());
+            if (!hg) {
                 CloseClipboard();
-                Render(TextChange);
                 return;
             }
-
-            char* clipboardText = static_cast<char*>(GlobalLock(hClipboardData));
-
-            string combinedText = clipboardText;
-            combinedText += newText;
-
-            GlobalUnlock(hClipboardData);
-
-            HGLOBAL hNewClipboardData = GlobalAlloc(GMEM_MOVEABLE, combinedText.size() + 1);
-            if (hNewClipboardData == nullptr) {
-                system("cls");
-                cout << " !!! Не вдалось виділити пам'ять для нових даних у буфері обміну !!!" << endl;
-                CloseClipboard();
-                Render(TextChange);
-                return;
-            }
-
-            char* newBuffer = static_cast<char*>(GlobalLock(hNewClipboardData));
-            strcpy_s(newBuffer, combinedText.size() + 1, combinedText.c_str());
-            GlobalUnlock(hNewClipboardData);
-
-            if (SetClipboardData(CF_TEXT, hNewClipboardData) == nullptr) {
-                system("cls");
-                cout << " !!! Не вдалось встановити нові дані у буфер обміну !!!" << endl;
-                CloseClipboard();
-                Render(TextChange);
-                return;
-            }
-
+            memcpy(GlobalLock(hg), newText.c_str(), newText.size());
+            GlobalUnlock(hg);
+            SetClipboardData(CF_TEXT, hg);
             CloseClipboard();
+            GlobalFree(hg);
 
             system("cls");
 
@@ -718,7 +639,15 @@ public:
 
     void DeleteFromText() {
         int Choice;
-        cin >> Choice;
+
+    костиль11:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль11;
+        }
 
         switch (Choice) {
         case 0: {
@@ -729,7 +658,15 @@ public:
         case 1: {
             int StartPos, Count;
             cout << "Введіть через пробіл номер символу з якого почати видалення та кількість символів після нього: ";
-            cin >> StartPos >> Count;
+
+        костиль12:
+
+            if (!(cin >> StartPos >> Count)) {
+                cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль12;
+            }
 
             ActiveSession->SetTauntEvent("Видалення");
             History->Backup();
@@ -750,7 +687,15 @@ public:
 
     void MoveInText() {
         int Choice;
-        cin >> Choice;
+
+    костиль14:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль14;
+        }
 
         switch (Choice) {
         case 0: {
@@ -761,7 +706,15 @@ public:
         case 1: {
             int StartPos, Count, Pos;
             cout << "Введіть через пробіл номер символу з якого почати виділення тексту та кількість символів після нього: ";
-            cin >> StartPos >> Count;
+
+        костиль15:
+
+            if (!(cin >> StartPos >> Count)) {
+                cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль15;
+            }
 
             string SubText = ActiveSession->GetTextLine().substr(StartPos, Count);
 
@@ -774,7 +727,15 @@ public:
             Render(SimpleTextChange);
 
             cout << " Введіть номер символу перед яким треба поставити текст: ";
-            cin >> Pos;
+
+        костиль16:
+
+            if (!(cin >> Pos)) {
+                cout << "Неправильно введено номер символу, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль16;
+            }
 
             ActiveSession->InputToText(Pos, SubText);
 
@@ -793,7 +754,15 @@ public:
 
     void CopyInText() {
         int Choice;
-        cin >> Choice;
+
+    костиль17:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль17;
+        }
 
         switch (Choice) {
         case 0: {
@@ -804,50 +773,30 @@ public:
         case 1: {
             int Pos, Count;
             cout << "Введіть через пробіл номер символу з якого почати копіювання та кількість символів після нього: ";
-            cin >> Pos >> Count;
+
+        костиль18:
+
+            if (!(cin >> Pos >> Count)) {
+                cout << "Неправильно введена позиція або кількість символів після позиції, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль18;
+            }
+
             string newText = ActiveSession->GetTextLine().substr(Pos, Count);
 
-            if (!OpenClipboard(nullptr)) {
-                cout << " !!! Не вдалось відкрити буфер обміну !!!" << endl;
-                Render(TextChange);
-                return;
-            }
-
-            HANDLE hClipboardData = GetClipboardData(CF_TEXT);
-            if (hClipboardData == nullptr) {
-                cout << " !!! Не вдалось отримати дані з буферу обміну !!!" << endl;
+            OpenClipboard(0);
+            EmptyClipboard();
+            HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, newText.size());
+            if (!hg) {
                 CloseClipboard();
-                Render(TextChange);
                 return;
             }
-
-            char* clipboardText = static_cast<char*>(GlobalLock(hClipboardData));
-
-            string combinedText = clipboardText;
-            combinedText += newText;
-
-            GlobalUnlock(hClipboardData);
-
-            HGLOBAL hNewClipboardData = GlobalAlloc(GMEM_MOVEABLE, combinedText.size() + 1);
-            if (hNewClipboardData == nullptr) {
-                cout << " !!! Не вдалось виділити пам'ять для нових даних у буфері обміну !!!" << endl;
-                CloseClipboard();
-                Render(TextChange);
-                return;
-            }
-
-            char* newBuffer = static_cast<char*>(GlobalLock(hNewClipboardData));
-            strcpy_s(newBuffer, combinedText.size() + 1, combinedText.c_str());
-            GlobalUnlock(hNewClipboardData);
-
-            if (SetClipboardData(CF_TEXT, hNewClipboardData) == nullptr) {
-                cout << " !!! Не вдалось встановити нові дані у буфер обміну !!!" << endl;
-                CloseClipboard();
-                Render(TextChange);
-                return;
-            }
-
+            memcpy(GlobalLock(hg), newText.c_str(), newText.size());
+            GlobalUnlock(hg);
+            SetClipboardData(CF_TEXT, hg);
             CloseClipboard();
+            GlobalFree(hg);
 
             system("cls");
 
@@ -867,7 +816,15 @@ public:
 
     void TextChangeSelector() {
         int Choice;
-        cin >> Choice;
+
+    костиль19:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль19;
+        }
 
         switch (Choice) {
         case 0: {
@@ -924,7 +881,15 @@ public:
         cout << "1 - Видалити останню подію      2 - Видалити останні декілька подій";
         cout << endl << "Оберіть команду: ";
         int Choice;
-        cin >> Choice;
+
+    костиль20:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль20;
+        }
 
         switch (Choice) {
         case 1: {
@@ -935,7 +900,16 @@ public:
         case 2: {
             int Number;
             cout << "Скільки подій ви бажаєте відмінити: ";
-            cin >> Number;
+
+        костиль21:
+
+            if (!(cin >> Number)) {
+                cout << "Неправильно введено кількість подій, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль21;
+            }
+
             system("cls");
             R_and_C.UndoRewiewNumber = Number;
             Render(CompareHistory);
@@ -982,7 +956,16 @@ public:
     void NewFileSelector() {
         ResetProgram();
         int Choice;
-        cin >> Choice;
+
+    костиль23:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль23;
+        }
+
         switch (Choice) {
         case 0: {
             system("cls");
@@ -1019,6 +1002,8 @@ public:
         SetNameSaveFile(Paths[Index].first);
     }
 
+    
+
     bool DeleteIndexFile(string filepath) {
         if (remove(filepath.c_str()) != 0) {
             return false;
@@ -1036,7 +1021,16 @@ public:
     void AlreadyHaveFileSelector() {
         ResetProgram();
         int Choice;
-        cin >> Choice;
+
+    костиль25:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль25;
+        }
+
         switch (Choice) {
         case 0: {
             system("cls");
@@ -1054,7 +1048,16 @@ public:
         case 2: {
             cout << " Оберіть індекс файлу: ";
             int Index;
-            cin >> Index;
+
+        костиль26:
+
+            if (!(cin >> Index)) {
+                cout << "Неправильно введено індекс, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль26;
+            }
+
             ChooseTheFile(Index);
             system("cls");
             SessionBackupFromSave();
@@ -1065,7 +1068,15 @@ public:
         case 3: {
             cout << " Оберіть індекс файлу: ";
             int Index;
-            cin >> Index;
+
+        костиль27:
+
+            if (!(cin >> Index)) {
+                cout << "Неправильно введено індекс, введіть ще раз: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                goto костиль27;
+            }
 
             system("cls");
 
@@ -1090,7 +1101,16 @@ public:
 
     void StartMenuSelector(){
         int Choice;
-        cin >> Choice;
+
+    костиль28:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль28;
+        }
+
         switch (Choice) {
         case 0: {
             exit(1);
@@ -1124,7 +1144,16 @@ public:
 
     void CompareSessionSelector() {
         int Choice;
-        cin >> Choice;
+
+    костиль29:
+
+        if (!(cin >> Choice)) {
+            cout << "Неправильно введена команда, введіть ще раз: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            goto костиль29;
+        }
+
         switch (Choice) {
             case 0: {
                 system("cls");
@@ -1247,6 +1276,7 @@ public:
 
             cout << " ---------------------------------------------------------------------------------------------------------------------" << endl;
         }
+
         else if (Variative == CompareHistory) {
             
             cout << "Поточний стан:" << endl;

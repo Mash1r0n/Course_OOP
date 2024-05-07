@@ -35,19 +35,5 @@
       <FileName>Course_OOP.cpp</FileName>
     </TypeIdentifier>
   </Class>
-  <Struct Name="SavePattern">
-    <Position X="3.25" Y="4" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAA=</HashCode>
-      <FileName>Course_OOP.cpp</FileName>
-    </TypeIdentifier>
-  </Struct>
-  <Struct Name="SavePatternForMemento">
-    <Position X="5" Y="4" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAQAABAAAAAAA=</HashCode>
-      <FileName>Course_OOP.cpp</FileName>
-    </TypeIdentifier>
-  </Struct>
   <Font Name="Segoe UI" Size="9" />
 </ClassDiagram>

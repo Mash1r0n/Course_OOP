@@ -541,7 +541,8 @@ public:
         case 2: {
             string Text;
             cout << "Введіть текст, який треба вставити: ";
-            cin >> Text;
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            getline(cin, Text);
             Text = Text.substr(0, 99);
             int Pos;
             cout << "Введіть номер символу перед яким треба поставити текст: ";
@@ -902,7 +903,7 @@ public:
     }
 
     void UndoSelector() {
-        cout << "1 - Видалити останню подію      2 - Видалити останні декілька подій";
+        cout << "1 - Відмінити останню подію      2 - Відмінити останні декілька подій";
         cout << endl << "Оберіть команду: ";
         int Choice;
 
@@ -924,16 +925,23 @@ public:
 
         case 2: {
             int Number;
-            cout << "Скільки подій ви бажаєте відмінити: ";
+            cout << "Скільки подій ви бажаєте відмінити (-9 для відміни): ";
 
         костиль21:
 
-            if (!(cin >> Number)) {
+            if (!(cin >> Number) || --Number < 0 || Number >= History->GetActiveSessionMemento().size()) {
+                if (++Number == -9) {
+                    system("cls");
+                    Render(TextChange);
+                }
+
                 cout << "Неправильно введено кількість подій, введіть ще раз: ";
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 goto костиль21;
             }
+
+            Number++;
 
             system("cls");
             R_and_C.UndoRewiewNumber = History->GetActiveSessionMemento().size() - Number;
@@ -1017,7 +1025,8 @@ public:
     void CreateNewFile() {
         cout << "Введіть назву файла: ";
         string Name;
-        cin >> Name;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        getline(cin, Name);
         fstream crt(Name += ".coi", ios::out);
         SetNameSaveFile(Name);
         crt.close();
